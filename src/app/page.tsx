@@ -1,89 +1,126 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import RecipeCard from "@/components/recipe/recipe-card";
 import { Ingredient, Recipe } from "@/types";
 import { Plus, Sparkles } from "lucide-react";
-
-// 임시 데이터 (나중에 실제 데이터로 교체)
-const mockIngredients: Ingredient[] = [
-  { id: "1", name: "감자", quantity: "3개", category: "야채", createdAt: new Date() },
-  { id: "2", name: "양파", quantity: "2개", category: "야채", createdAt: new Date() },
-  { id: "3", name: "계란", quantity: "6개", category: "유제품", createdAt: new Date() },
-  { id: "4", name: "돼지고기", quantity: "300g", category: "육류", createdAt: new Date() },
-];
-
-const mockRecipes: Recipe[] = [
-  {
-    id: "1",
-    name: "감자 양파 스크램블 에그",
-    image: "https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?w=400&h=300&fit=crop",
-    ingredients: [
-      { name: "감자", quantity: "2개", isAvailable: true },
-      { name: "양파", quantity: "1개", isAvailable: true },
-      { name: "계란", quantity: "3개", isAvailable: true },
-      { name: "버터", quantity: "1큰술", isAvailable: false },
-    ],
-    instructions: [
-      "감자를 깍둑썰기하여 준비합니다.",
-      "양파를 다져서 준비합니다.",
-      "팬에 버터를 녹이고 감자를 볶습니다.",
-      "양파를 추가하여 볶습니다.",
-      "계란을 깨서 넣고 스크램블합니다.",
-    ],
-    cookingTime: 20,
-    difficulty: "easy",
-    servings: 2,
-    tags: ["한식", "간단", "아침"],
-    createdBy: "시스템",
-    createdAt: new Date(),
-  },
-  {
-    id: "2",
-    name: "돼지고기 감자 스튜",
-    image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400&h=300&fit=crop",
-    ingredients: [
-      { name: "돼지고기", quantity: "300g", isAvailable: true },
-      { name: "감자", quantity: "2개", isAvailable: true },
-      { name: "양파", quantity: "1개", isAvailable: true },
-      { name: "당근", quantity: "1개", isAvailable: false },
-      { name: "월계수잎", quantity: "2장", isAvailable: false },
-    ],
-    instructions: [
-      "돼지고기를 적당한 크기로 썰어줍니다.",
-      "감자와 양파를 깍둑썰기합니다.",
-      "팬에 기름을 두르고 돼지고기를 볶습니다.",
-      "감자와 양파를 추가하여 볶습니다.",
-      "물을 넣고 끓여줍니다.",
-    ],
-    cookingTime: 45,
-    difficulty: "medium",
-    servings: 3,
-    tags: ["한식", "메인요리"],
-    createdBy: "시스템",
-    createdAt: new Date(),
-  },
-];
+import { ingredientService, recipeService } from "@/lib/database";
+import { aiService } from "@/lib/ai-service";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function HomePage() {
-  const [ingredients] = useState<Ingredient[]>(mockIngredients);
-  const [recipes] = useState<Recipe[]>(mockRecipes);
+  const [ingredients, setIngredients] = useState<Ingredient[]>([]);
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+
+  // 임시 사용자 ID (나중에 인증 시스템으로 교체)
+  const TEMP_USER_ID = "00000000-0000-0000-0000-000000000000";
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // 병렬로 데이터 로드
+      const [ingredientsData, recipesData] = await Promise.all([
+        ingredientService.getAllIngredients(TEMP_USER_ID),
+        recipeService.getAllRecipes(),
+      ]);
+
+      setIngredients(ingredientsData);
+      setRecipes(recipesData);
+    } catch (err) {
+      console.error("데이터 로드 실패:", err);
+      setError("데이터를 불러오는데 실패했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // 레시피별 부족한 재료 계산
   const getMissingIngredients = (recipe: Recipe): string[] => {
-    return recipe.ingredients.filter((ingredient) => !ingredient.isAvailable).map((ingredient) => ingredient.name);
+    const availableIngredients = ingredients.map((ing) => ing.name.toLowerCase()).filter(Boolean);
+
+    return recipe.ingredients
+      .filter((ingredient) => ingredient.name && !availableIngredients.includes(ingredient.name.toLowerCase()))
+      .map((ingredient) => ingredient.name!)
+      .filter(Boolean);
   };
 
   const handleRecipeClick = (recipeId: string) => {
     // 레시피 상세 페이지로 이동
-    window.location.href = `/recipe/${recipeId}`;
+    router.push(`/recipe/${recipeId}`);
   };
 
-  const handleAIGenerate = () => {
-    // AI 레시피 생성 기능 (나중에 구현)
-    alert("AI 레시피 생성 기능은 준비 중입니다!");
+  const handleAIGenerate = async () => {
+    if (ingredients.length === 0) {
+      alert("먼저 식재료를 등록해주세요!");
+      return;
+    }
+
+    try {
+      setAiLoading(true);
+
+      // AI 레시피 생성
+      const ingredientNames = ingredients.map((ing) => ing.name).filter((name) => name && name.trim() !== "");
+
+      const aiRecipe = await aiService.generateRecipe({
+        ingredients: ingredientNames,
+        difficulty: "easy",
+        servings: 2,
+      });
+
+      // 생성된 레시피를 데이터베이스에 저장
+      const savedRecipe = await recipeService.addRecipe(
+        {
+          ...aiRecipe,
+          createdBy: TEMP_USER_ID,
+        },
+        TEMP_USER_ID
+      );
+
+      // 레시피 상세 페이지로 이동
+      router.push(`/recipe/${savedRecipe.id}`);
+    } catch (error) {
+      console.error("AI 레시피 생성 실패:", error);
+      alert("AI 레시피 생성에 실패했습니다. 다시 시도해주세요.");
+    } finally {
+      setAiLoading(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">데이터를 불러오는 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">{error}</p>
+          <Button onClick={loadData} variant="outline">
+            다시 시도
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -98,45 +135,90 @@ export default function HomePage() {
         <div className="mb-6 sm:mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
             <h2 className="text-lg sm:text-xl font-semibold text-gray-900">보유 식재료</h2>
-            <Button variant="outline" size="sm" className="w-full sm:w-auto">
-              <Plus className="h-4 w-4 mr-2" />
-              식재료 추가
-            </Button>
+            <Link href="/ingredients">
+              <Button variant="outline" size="sm" className="w-full sm:w-auto">
+                <Plus className="h-4 w-4 mr-2" />
+                식재료 추가
+              </Button>
+            </Link>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {ingredients.map((ingredient) => (
-              <span key={ingredient.id} className="px-3 py-1 bg-white border border-gray-200 rounded-full text-sm text-gray-700">
-                {ingredient.name} {ingredient.quantity && `(${ingredient.quantity})`}
-              </span>
-            ))}
-          </div>
+          {ingredients.length === 0 ? (
+            <div className="text-center py-8 bg-white rounded-lg border border-gray-200">
+              <p className="text-gray-500 mb-4">등록된 식재료가 없습니다.</p>
+              <Link href="/ingredients">
+                <Button size="sm">
+                  <Plus className="h-4 w-4 mr-2" />첫 식재료 추가하기
+                </Button>
+              </Link>
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {ingredients.slice(0, 10).map((ingredient) => (
+                <span key={ingredient.id} className="px-3 py-1 bg-white border border-gray-200 rounded-full text-sm text-gray-700">
+                  {ingredient.name} {ingredient.quantity && `(${ingredient.quantity})`}
+                </span>
+              ))}
+              {ingredients.length > 10 && (
+                <span className="px-3 py-1 bg-gray-100 border border-gray-200 rounded-full text-sm text-gray-500">
+                  +{ingredients.length - 10}개 더
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* AI 레시피 생성 버튼 */}
         <div className="mb-6 sm:mb-8">
           <Button
             onClick={handleAIGenerate}
-            className="w-full sm:w-auto bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
+            disabled={aiLoading || ingredients.length === 0}
+            className="w-full sm:w-auto bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 disabled:opacity-50"
             size="lg"
           >
-            <Sparkles className="h-4 w-4 mr-2" />
-            AI로 레시피 추천받기
+            {aiLoading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                AI 레시피 생성 중...
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4 mr-2" />
+                AI로 레시피 추천받기
+              </>
+            )}
           </Button>
         </div>
 
         {/* 추천 레시피 섹션 */}
         <div>
           <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-6">추천 레시피</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            {recipes.map((recipe) => (
-              <RecipeCard
-                key={recipe.id}
-                recipe={recipe}
-                missingIngredients={getMissingIngredients(recipe)}
-                onClick={() => handleRecipeClick(recipe.id)}
-              />
-            ))}
-          </div>
+          {recipes.length === 0 ? (
+            <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
+              <p className="text-gray-500 mb-4">등록된 레시피가 없습니다.</p>
+              <Link href="/recipe/new">
+                <Button size="sm">
+                  <Plus className="h-4 w-4 mr-2" />첫 레시피 추가하기
+                </Button>
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              {recipes
+                .map((recipe) => ({
+                  recipe,
+                  missingCount: getMissingIngredients(recipe).length,
+                }))
+                .sort((a, b) => a.missingCount - b.missingCount) // 부족한 재료가 적은 순으로 정렬
+                .map(({ recipe }) => (
+                  <RecipeCard
+                    key={recipe.id}
+                    recipe={recipe}
+                    missingIngredients={getMissingIngredients(recipe)}
+                    onClick={() => handleRecipeClick(recipe.id)}
+                  />
+                ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

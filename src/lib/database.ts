@@ -131,19 +131,42 @@ export const recipeService = {
     }
 
     return (
-      data?.map((item) => ({
-        id: item.id,
-        name: item.name,
-        image: item.image,
-        ingredients: JSON.parse(item.ingredients),
-        instructions: JSON.parse(item.instructions),
-        cookingTime: item.cooking_time,
-        difficulty: item.difficulty,
-        servings: item.servings,
-        tags: item.tags,
-        createdBy: item.created_by,
-        createdAt: new Date(item.created_at),
-      })) || []
+      data?.map((item) => {
+        try {
+          const parsedIngredients = JSON.parse(item.ingredients);
+          const parsedInstructions = JSON.parse(item.instructions);
+
+          return {
+            id: item.id,
+            name: item.name,
+            image: item.image,
+            ingredients: Array.isArray(parsedIngredients) ? parsedIngredients : [],
+            instructions: Array.isArray(parsedInstructions) ? parsedInstructions : [],
+            cookingTime: item.cooking_time,
+            difficulty: item.difficulty,
+            servings: item.servings,
+            tags: item.tags || [],
+            createdBy: item.created_by,
+            createdAt: new Date(item.created_at),
+          };
+        } catch (parseError) {
+          console.error("Error parsing recipe data:", parseError);
+          // 파싱 실패 시 기본값 반환
+          return {
+            id: item.id,
+            name: item.name,
+            image: item.image,
+            ingredients: [],
+            instructions: [],
+            cookingTime: item.cooking_time,
+            difficulty: item.difficulty,
+            servings: item.servings,
+            tags: item.tags || [],
+            createdBy: item.created_by,
+            createdAt: new Date(item.created_at),
+          };
+        }
+      }) || []
     );
   },
 
@@ -170,19 +193,27 @@ export const recipeService = {
       throw error;
     }
 
-    return {
-      id: data.id,
-      name: data.name,
-      image: data.image,
-      ingredients: JSON.parse(data.ingredients),
-      instructions: JSON.parse(data.instructions),
-      cookingTime: data.cooking_time,
-      difficulty: data.difficulty,
-      servings: data.servings,
-      tags: data.tags,
-      createdBy: data.created_by,
-      createdAt: new Date(data.created_at),
-    };
+    try {
+      const parsedIngredients = JSON.parse(data.ingredients);
+      const parsedInstructions = JSON.parse(data.instructions);
+
+      return {
+        id: data.id,
+        name: data.name,
+        image: data.image,
+        ingredients: Array.isArray(parsedIngredients) ? parsedIngredients : [],
+        instructions: Array.isArray(parsedInstructions) ? parsedInstructions : [],
+        cookingTime: data.cooking_time,
+        difficulty: data.difficulty,
+        servings: data.servings,
+        tags: data.tags || [],
+        createdBy: data.created_by,
+        createdAt: new Date(data.created_at),
+      };
+    } catch (parseError) {
+      console.error("Error parsing added recipe data:", parseError);
+      throw new Error("레시피 데이터 파싱에 실패했습니다.");
+    }
   },
 
   // 레시피 삭제

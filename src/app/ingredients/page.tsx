@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Ingredient, IngredientFormData } from "@/types";
-import { generateId } from "@/lib/utils";
 import { Plus, Trash2, Edit, ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { ingredientService } from "@/lib/database";
 
 export default function IngredientsPage() {
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
@@ -17,29 +17,64 @@ export default function IngredientsPage() {
     category: "",
   });
   const [isEditing, setIsEditing] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // 임시 사용자 ID (나중에 인증 시스템으로 교체)
+  const TEMP_USER_ID = "00000000-0000-0000-0000-000000000000";
+
+  useEffect(() => {
+    loadIngredients();
+  }, []);
+
+  const loadIngredients = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await ingredientService.getAllIngredients(TEMP_USER_ID);
+      setIngredients(data);
+    } catch (err) {
+      console.error("식재료 로드 실패:", err);
+      setError("식재료를 불러오는데 실패했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.name.trim()) return;
 
-    const newIngredient: Ingredient = {
-      id: isEditing || generateId(),
-      name: formData.name.trim(),
-      quantity: formData.quantity || undefined,
-      expiryDate: formData.expiryDate ? new Date(formData.expiryDate) : undefined,
-      category: formData.category || undefined,
-      createdAt: new Date(),
-    };
+    try {
+      setSubmitting(true);
 
-    if (isEditing) {
-      setIngredients((prev) => prev.map((ing) => (ing.id === isEditing ? newIngredient : ing)));
-      setIsEditing(null);
-    } else {
-      setIngredients((prev) => [...prev, newIngredient]);
+      const ingredientData = {
+        name: formData.name.trim(),
+        quantity: formData.quantity || undefined,
+        expiryDate: formData.expiryDate ? new Date(formData.expiryDate) : undefined,
+        category: formData.category || undefined,
+      };
+
+      if (isEditing) {
+        // 수정
+        const updatedIngredient = await ingredientService.updateIngredient(isEditing, ingredientData);
+        setIngredients((prev) => prev.map((ing) => (ing.id === isEditing ? updatedIngredient : ing)));
+        setIsEditing(null);
+      } else {
+        // 추가
+        const newIngredient = await ingredientService.addIngredient(ingredientData, TEMP_USER_ID);
+        setIngredients((prev) => [...prev, newIngredient]);
+      }
+
+      setFormData({ name: "", quantity: "", expiryDate: "", category: "" });
+    } catch (err) {
+      console.error("식재료 저장 실패:", err);
+      alert("식재료 저장에 실패했습니다.");
+    } finally {
+      setSubmitting(false);
     }
-
-    setFormData({ name: "", quantity: "", expiryDate: "", category: "" });
   };
 
   const handleEdit = (ingredient: Ingredient) => {
@@ -52,11 +87,19 @@ export default function IngredientsPage() {
     setIsEditing(ingredient.id);
   };
 
-  const handleDelete = (id: string) => {
-    setIngredients((prev) => prev.filter((ing) => ing.id !== id));
+  const handleDelete = async (id: string) => {
+    if (confirm("정말로 이 식재료를 삭제하시겠습니까?")) {
+      try {
+        await ingredientService.deleteIngredient(id);
+        setIngredients((prev) => prev.filter((ing) => ing.id !== id));
+      } catch (err) {
+        console.error("삭제 실패:", err);
+        alert("삭제에 실패했습니다.");
+      }
+    }
   };
 
-  const handleBulkAdd = (e: React.FormEvent) => {
+  const handleBulkAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
     const textarea = form.elements.namedItem("bulkIngredients") as HTMLTextAreaElement;
@@ -64,19 +107,23 @@ export default function IngredientsPage() {
 
     if (!ingredientsText) return;
 
-    const ingredientNames = ingredientsText
-      .split(/[,\n]/)
-      .map((name) => name.trim())
-      .filter((name) => name.length > 0);
+    try {
+      setSubmitting(true);
 
-    const newIngredients: Ingredient[] = ingredientNames.map((name) => ({
-      id: generateId(),
-      name,
-      createdAt: new Date(),
-    }));
+      const ingredientNames = ingredientsText
+        .split(/[,\n]/)
+        .map((name) => name.trim())
+        .filter((name) => name.length > 0);
 
-    setIngredients((prev) => [...prev, ...newIngredients]);
-    textarea.value = "";
+      const newIngredients = await ingredientService.bulkAddIngredients(ingredientNames, TEMP_USER_ID);
+      setIngredients((prev) => [...prev, ...newIngredients]);
+      textarea.value = "";
+    } catch (err) {
+      console.error("일괄 추가 실패:", err);
+      alert("일괄 추가에 실패했습니다.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const isExpiringSoon = (date: Date) => {
@@ -89,6 +136,30 @@ export default function IngredientsPage() {
   const isExpired = (date: Date) => {
     return date < new Date();
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">식재료를 불러오는 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">{error}</p>
+          <Button onClick={loadIngredients} variant="outline">
+            다시 시도
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-4 sm:py-8">
@@ -119,6 +190,7 @@ export default function IngredientsPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
                     placeholder="예: 감자, 양파, 계란"
                     required
+                    disabled={submitting}
                   />
                 </div>
 
@@ -130,6 +202,7 @@ export default function IngredientsPage() {
                     onChange={(e) => setFormData((prev) => ({ ...prev, quantity: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
                     placeholder="예: 3개, 500g"
+                    disabled={submitting}
                   />
                 </div>
 
@@ -140,6 +213,7 @@ export default function IngredientsPage() {
                     value={formData.expiryDate}
                     onChange={(e) => setFormData((prev) => ({ ...prev, expiryDate: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    disabled={submitting}
                   />
                 </div>
 
@@ -149,6 +223,7 @@ export default function IngredientsPage() {
                     value={formData.category}
                     onChange={(e) => setFormData((prev) => ({ ...prev, category: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    disabled={submitting}
                   >
                     <option value="">카테고리 선택</option>
                     <option value="야채">야채</option>
@@ -160,9 +235,9 @@ export default function IngredientsPage() {
                   </select>
                 </div>
 
-                <Button type="submit" className="w-full">
+                <Button type="submit" className="w-full" disabled={submitting}>
                   <Plus className="h-4 w-4 mr-2" />
-                  {isEditing ? "수정하기" : "추가하기"}
+                  {submitting ? "저장 중..." : isEditing ? "수정하기" : "추가하기"}
                 </Button>
               </form>
             </CardContent>
@@ -182,10 +257,11 @@ export default function IngredientsPage() {
                     rows={4}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
                     placeholder="여러 식재료를 콤마(,) 또는 줄바꿈으로 구분하여 입력하세요&#10;예: 감자, 양파&#10;계란, 돼지고기"
+                    disabled={submitting}
                   />
                 </div>
-                <Button type="submit" variant="outline" className="w-full">
-                  일괄 추가
+                <Button type="submit" variant="outline" className="w-full" disabled={submitting}>
+                  {submitting ? "추가 중..." : "일괄 추가"}
                 </Button>
               </form>
             </CardContent>
@@ -199,59 +275,79 @@ export default function IngredientsPage() {
           </CardHeader>
           <CardContent>
             {ingredients.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">등록된 식재료가 없습니다.</p>
+              <div className="text-center py-8">
+                <p className="text-gray-500">등록된 식재료가 없습니다.</p>
+              </div>
             ) : (
-              <div className="space-y-3">
-                {ingredients.map((ingredient) => (
-                  <div
-                    key={ingredient.id}
-                    className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-lg gap-3 ${
-                      ingredient.expiryDate && isExpired(ingredient.expiryDate)
-                        ? "bg-red-50 border-red-200"
-                        : ingredient.expiryDate && isExpiringSoon(ingredient.expiryDate)
-                        ? "bg-yellow-50 border-yellow-200"
-                        : "bg-white border-gray-200"
-                    }`}
-                  >
-                    <div className="flex-1">
-                      <div className="flex flex-wrap items-center gap-2 mb-1">
-                        <h3 className="font-medium text-gray-900">{ingredient.name}</h3>
-                        {ingredient.quantity && <span className="text-sm text-gray-500">({ingredient.quantity})</span>}
-                        {ingredient.category && (
-                          <span className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded-full">{ingredient.category}</span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                {ingredients.map((ingredient) => {
+                  const expiryStatus = ingredient.expiryDate
+                    ? isExpired(ingredient.expiryDate)
+                      ? "expired"
+                      : isExpiringSoon(ingredient.expiryDate)
+                      ? "expiring"
+                      : "good"
+                    : null;
+
+                  return (
+                    <div
+                      key={ingredient.id}
+                      className={`p-3 sm:p-4 border rounded-lg ${
+                        expiryStatus === "expired"
+                          ? "bg-red-50 border-red-200"
+                          : expiryStatus === "expiring"
+                          ? "bg-yellow-50 border-yellow-200"
+                          : "bg-white border-gray-200"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium text-gray-900 truncate">{ingredient.name}</h3>
+                          {ingredient.quantity && <p className="text-sm text-gray-500">{ingredient.quantity}</p>}
+                        </div>
+                        <div className="flex space-x-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEdit(ingredient)}
+                            className="text-blue-600 hover:text-blue-700"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDelete(ingredient.id)}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between text-sm">
+                        {ingredient.category && <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded">{ingredient.category}</span>}
+                        {expiryStatus && (
+                          <span
+                            className={`px-2 py-1 rounded ${
+                              expiryStatus === "expired"
+                                ? "text-red-600 bg-red-100"
+                                : expiryStatus === "expiring"
+                                ? "text-yellow-600 bg-yellow-100"
+                                : "text-green-600 bg-green-100"
+                            }`}
+                          >
+                            {expiryStatus === "expired" ? "만료됨" : expiryStatus === "expiring" ? "임박" : "양호"}
+                          </span>
                         )}
                       </div>
+
                       {ingredient.expiryDate && (
-                        <p
-                          className={`text-sm ${
-                            isExpired(ingredient.expiryDate)
-                              ? "text-red-600"
-                              : isExpiringSoon(ingredient.expiryDate)
-                              ? "text-yellow-600"
-                              : "text-gray-500"
-                          }`}
-                        >
-                          유통기한: {ingredient.expiryDate.toLocaleDateString("ko-KR")}
-                          {isExpired(ingredient.expiryDate) && " (만료됨)"}
-                          {isExpiringSoon(ingredient.expiryDate) && !isExpired(ingredient.expiryDate) && " (임박)"}
-                        </p>
+                        <p className="text-xs text-gray-500 mt-2">유통기한: {ingredient.expiryDate.toLocaleDateString()}</p>
                       )}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="sm" onClick={() => handleEdit(ingredient)} className="flex-1 sm:flex-none">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDelete(ingredient.id)}
-                        className="text-red-600 hover:text-red-700 flex-1 sm:flex-none"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>

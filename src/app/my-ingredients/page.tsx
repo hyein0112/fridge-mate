@@ -1,53 +1,41 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Ingredient } from "@/types";
 import { Plus, Trash2, ArrowLeft } from "lucide-react";
 import Link from "next/link";
-
-// 임시 데이터
-const mockIngredients: Ingredient[] = [
-  {
-    id: "1",
-    name: "감자",
-    quantity: "3개",
-    category: "야채",
-    expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7일 후
-    createdAt: new Date(),
-  },
-  {
-    id: "2",
-    name: "양파",
-    quantity: "2개",
-    category: "야채",
-    expiryDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // 2일 후
-    createdAt: new Date(),
-  },
-  {
-    id: "3",
-    name: "계란",
-    quantity: "6개",
-    category: "유제품",
-    expiryDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1일 전 (만료)
-    createdAt: new Date(),
-  },
-  {
-    id: "4",
-    name: "돼지고기",
-    quantity: "300g",
-    category: "육류",
-    expiryDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14일 후
-    createdAt: new Date(),
-  },
-];
+import { ingredientService } from "@/lib/database";
 
 export default function MyIngredientsPage() {
-  const [ingredients, setIngredients] = useState<Ingredient[]>(mockIngredients);
+  const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // 임시 사용자 ID (나중에 인증 시스템으로 교체)
+  const TEMP_USER_ID = "00000000-0000-0000-0000-000000000000";
 
   const categories = ["all", "야채", "육류", "유제품", "곡물", "조미료", "기타"];
+
+  useEffect(() => {
+    loadIngredients();
+  }, []);
+
+  const loadIngredients = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await ingredientService.getAllIngredients(TEMP_USER_ID);
+      setIngredients(data);
+    } catch (err) {
+      console.error("식재료 로드 실패:", err);
+      setError("식재료를 불러오는데 실패했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredIngredients = selectedCategory === "all" ? ingredients : ingredients.filter((ing) => ing.category === selectedCategory);
 
@@ -68,15 +56,45 @@ export default function MyIngredientsPage() {
     return { status: "good", text: "양호", color: "text-green-600 bg-green-100" };
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm("정말로 이 식재료를 삭제하시겠습니까?")) {
-      setIngredients((prev) => prev.filter((ing) => ing.id !== id));
+      try {
+        await ingredientService.deleteIngredient(id);
+        setIngredients((prev) => prev.filter((ing) => ing.id !== id));
+      } catch (err) {
+        console.error("삭제 실패:", err);
+        alert("삭제에 실패했습니다.");
+      }
     }
   };
 
   const expiringIngredients = ingredients.filter((ing) => ing.expiryDate && (isExpiringSoon(ing.expiryDate) || isExpired(ing.expiryDate)));
 
   const expiredIngredients = ingredients.filter((ing) => ing.expiryDate && isExpired(ing.expiryDate));
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">식재료를 불러오는 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">{error}</p>
+          <Button onClick={loadIngredients} variant="outline">
+            다시 시도
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-4 sm:py-8">
@@ -168,7 +186,18 @@ export default function MyIngredientsPage() {
           </CardHeader>
           <CardContent>
             {filteredIngredients.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">해당 카테고리의 식재료가 없습니다.</p>
+              <div className="text-center py-8">
+                <p className="text-gray-500 mb-4">
+                  {selectedCategory === "all" ? "등록된 식재료가 없습니다." : `${selectedCategory} 카테고리의 식재료가 없습니다.`}
+                </p>
+                {selectedCategory === "all" && (
+                  <Link href="/ingredients">
+                    <Button size="sm">
+                      <Plus className="h-4 w-4 mr-2" />첫 식재료 추가하기
+                    </Button>
+                  </Link>
+                )}
+              </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                 {filteredIngredients.map((ingredient) => {
@@ -200,28 +229,13 @@ export default function MyIngredientsPage() {
                         </Button>
                       </div>
 
-                      <div className="flex items-center justify-between mb-2">
-                        {ingredient.category && (
-                          <span className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded-full">{ingredient.category}</span>
-                        )}
-
-                        {expiryStatus && (
-                          <span className={`px-2 py-1 text-xs rounded-full ${expiryStatus.color}`}>{expiryStatus.text}</span>
-                        )}
+                      <div className="flex items-center justify-between text-sm">
+                        {ingredient.category && <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded">{ingredient.category}</span>}
+                        {expiryStatus && <span className={`px-2 py-1 rounded ${expiryStatus.color}`}>{expiryStatus.text}</span>}
                       </div>
 
                       {ingredient.expiryDate && (
-                        <p
-                          className={`text-sm ${
-                            isExpired(ingredient.expiryDate)
-                              ? "text-red-600"
-                              : isExpiringSoon(ingredient.expiryDate)
-                              ? "text-yellow-600"
-                              : "text-gray-500"
-                          }`}
-                        >
-                          유통기한: {ingredient.expiryDate.toLocaleDateString("ko-KR")}
-                        </p>
+                        <p className="text-xs text-gray-500 mt-2">유통기한: {ingredient.expiryDate.toLocaleDateString()}</p>
                       )}
                     </div>
                   );
@@ -230,41 +244,6 @@ export default function MyIngredientsPage() {
             )}
           </CardContent>
         </Card>
-
-        {/* 유통기한 임박 알림 */}
-        {expiringIngredients.length > 0 && (
-          <Card className="mt-6 border-yellow-200 bg-yellow-50">
-            <CardHeader>
-              <CardTitle className="text-yellow-800 text-lg">⚠️ 유통기한 임박 알림</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {expiringIngredients.map((ingredient) => (
-                  <div
-                    key={ingredient.id}
-                    className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-white rounded-lg border border-yellow-200 gap-2"
-                  >
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900">{ingredient.name}</p>
-                      <p className="text-sm text-yellow-700">
-                        유통기한: {ingredient.expiryDate?.toLocaleDateString("ko-KR")}
-                        {isExpired(ingredient.expiryDate!) && " (만료됨)"}
-                      </p>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDelete(ingredient.id)}
-                      className="text-red-600 border-red-300 hover:bg-red-50 w-full sm:w-auto"
-                    >
-                      삭제
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
       </div>
     </div>
   );

@@ -22,7 +22,7 @@ export interface Recipe {
 }
 
 export interface RecipeIngredient {
-  name: string;
+  name?: string;
   quantity: string;
   isAvailable: boolean; // 사용자가 보유한 재료인지 여부
 }
