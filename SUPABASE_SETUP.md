@@ -19,9 +19,29 @@
 `.env.local` 파일을 생성하고 다음 내용 추가:
 
 ```env
+# Supabase 설정
 NEXT_PUBLIC_SUPABASE_URL=your_project_url_here
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key_here
+
+# AI 서비스 설정 (선택사항)
+NEXT_PUBLIC_PERPLEXITY_API_KEY=your_perplexity_api_key_here
+NEXT_PUBLIC_OPENAI_API_KEY=your_openai_api_key_here
 ```
+
+### AI 서비스 API 키 획득
+
+#### Perplexity AI (추천)
+
+1. [Perplexity AI](https://www.perplexity.ai/) 가입
+2. API 섹션에서 API 키 생성
+3. 무료 티어: 월 5회 요청
+4. 유료 플랜: $5/월부터
+
+#### OpenAI (백업용)
+
+1. [OpenAI Platform](https://platform.openai.com/) 가입
+2. API Keys 섹션에서 키 생성
+3. 유료 서비스 (사용량 기반)
 
 ## 3. 데이터베이스 테이블 생성
 
@@ -102,16 +122,58 @@ INSERT INTO recipes (name, image, ingredients, instructions, cooking_time, diffi
 );
 ```
 
-## 5. 애플리케이션 테스트
+## 5. AI 기능 테스트
+
+### Perplexity AI 테스트
+
+AI 기능이 제대로 작동하는지 테스트:
+
+1. 레시피 등록 페이지에서 "AI로 레시피 생성" 버튼 클릭
+2. 식재료 입력 후 생성 요청
+3. 생성된 레시피 확인
+
+### 계절별 식재료 추천
+
+메인 페이지에서 계절별 식재료 추천 기능 테스트:
+
+```typescript
+// 개발자 도구 콘솔에서 테스트
+import { aiService } from "@/lib/ai-service";
+
+// 계절별 식재료 조회
+const seasonalIngredients = await aiService.getSeasonalIngredients();
+console.log("계절별 식재료:", seasonalIngredients);
+
+// 요리 팁 조회
+const cookingTips = await aiService.getCookingTips("감자");
+console.log("감자 요리 팁:", cookingTips);
+```
+
+## 6. 애플리케이션 테스트
 
 1. 개발 서버 재시작: `npm run dev`
 2. 브라우저에서 애플리케이션 접속
 3. 식재료 추가/삭제 기능 테스트
 4. 레시피 등록 기능 테스트
+5. AI 레시피 생성 기능 테스트
 
-## 6. 다음 단계
+## 7. 다음 단계
 
 - 사용자 인증 시스템 추가
 - 실시간 기능 구현
 - 이미지 업로드 기능
-- AI 레시피 생성 기능 연동
+- 고급 AI 기능 구현
+
+## 8. 문제 해결
+
+### AI 서비스 오류
+
+- API 키가 올바르게 설정되었는지 확인
+- 네트워크 연결 상태 확인
+- API 사용량 한도 확인
+
+### 데이터베이스 오류
+
+- Supabase 프로젝트 상태 확인
+- RLS 정책 설정 확인
+- 테이블 구조 확인

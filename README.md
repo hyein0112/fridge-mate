@@ -35,11 +35,16 @@ npm install
 
 ### 3. 환경 변수 설정
 
-`.env.local` 파일을 생성하고 Supabase 설정을 추가:
+`.env.local` 파일을 생성하고 다음 내용을 추가하세요:
 
 ```env
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url_here
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
+# Supabase 설정
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+
+# AI 서비스 설정 (선택사항)
+NEXT_PUBLIC_PERPLEXITY_API_KEY=your_perplexity_api_key
+NEXT_PUBLIC_OPENAI_API_KEY=your_openai_api_key
 ```
 
 ### 4. Supabase 설정
@@ -89,22 +94,24 @@ npm run dev
 
 ## 🤖 AI 기능
 
-### 현재 지원하는 AI 서비스
+### Perplexity AI (주 서비스)
 
-- **Hugging Face Inference API** (무료)
-- **OpenAI GPT** (유료)
-- **Claude API** (유료)
+- **실시간 레시피 생성**: 식재료 기반 맞춤형 레시피
+- **계절별 식재료 추천**: 현재 계절에 맞는 신선한 식재료
+- **요리 팁**: 각 식재료별 조리 팁 제공
+- **실시간 정보**: 최신 요리 트렌드 및 정보
 
-### AI 레시피 생성 설정
+### OpenAI (백업 서비스)
 
-`src/services/ai.ts` 파일에서 AI 서비스 설정:
+- Perplexity AI 서비스 장애 시 자동 전환
+- 안정적인 레시피 생성
 
-```typescript
-// 환경 변수에 API 키 추가
-OPENAI_API_KEY = your_openai_api_key;
-HUGGINGFACE_API_KEY = your_huggingface_api_key;
-ANTHROPIC_API_KEY = your_anthropic_api_key;
-```
+### AI 기능 특징
+
+- **다양한 난이도**: 쉬움/보통/어려움
+- **개인화**: 식이 제한, 선호 요리 종류 반영
+- **상세 정보**: 영양 정보, 조리 시간, 팁 포함
+- **JSON 응답**: 구조화된 데이터로 안정적 파싱
 
 ## 📱 반응형 디자인
 
@@ -142,6 +149,21 @@ npm start
 - Tailwind CSS 클래스 사용
 - shadcn/ui 컴포넌트 활용
 - 일관된 색상 팔레트 (orange-500, gray-900 등)
+
+### AI 서비스 API 키 획득
+
+#### Perplexity AI (추천)
+
+1. [Perplexity AI](https://www.perplexity.ai/) 가입
+2. API 섹션에서 API 키 생성
+3. 무료 티어: 월 5회 요청
+4. 유료 플랜: $5/월부터
+
+#### OpenAI (백업용)
+
+1. [OpenAI Platform](https://platform.openai.com/) 가입
+2. API Keys 섹션에서 키 생성
+3. 유료 서비스 (사용량 기반)
 
 ---
 
