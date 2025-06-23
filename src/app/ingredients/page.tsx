@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Ingredient, IngredientFormData } from "@/types";
-import { Plus, Trash2, Edit, ArrowLeft, Calendar } from "lucide-react";
+import { Plus, Trash2, Edit, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { ingredientService } from "@/lib/database";
 import { useAuth } from "@/lib/auth-context";
