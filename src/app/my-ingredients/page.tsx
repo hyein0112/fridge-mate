@@ -4,10 +4,11 @@ import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Ingredient } from "@/types";
-import { Plus, Trash2, ArrowLeft } from "lucide-react";
+import { Plus, Trash2, ArrowLeft, Calendar } from "lucide-react";
 import Link from "next/link";
 import { ingredientService } from "@/lib/database";
 import { useAuth } from "@/lib/auth-context";
+import { resetScrollPosition } from "@/lib/utils";
 
 export default function MyIngredientsPage() {
   const { user } = useAuth();
@@ -38,6 +39,8 @@ export default function MyIngredientsPage() {
     if (user) {
       loadIngredients();
     }
+    // 페이지 로드 시 스크롤 위치 초기화
+    resetScrollPosition();
   }, [user, loadIngredients]);
 
   const filteredIngredients = selectedCategory === "all" ? ingredients : ingredients.filter((ing) => ing.category === selectedCategory);
@@ -114,8 +117,8 @@ export default function MyIngredientsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-4 sm:py-8">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="bg-gray-50 pt-16">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
         {/* 헤더 */}
         <div className="mb-6 sm:mb-8">
           <Link href="/" className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-4">

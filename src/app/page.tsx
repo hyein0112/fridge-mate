@@ -10,6 +10,7 @@ import { aiService } from "@/lib/ai-service";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import { resetScrollPosition } from "@/lib/utils";
 
 export default function HomePage() {
   const { user } = useAuth();
@@ -21,20 +22,19 @@ export default function HomePage() {
   const router = useRouter();
 
   const loadData = useCallback(async () => {
-    if (!user) return;
-
     try {
       setLoading(true);
       setError(null);
 
-      // 병렬로 데이터 로드
-      const [ingredientsData, recipesData] = await Promise.all([
-        ingredientService.getAllIngredients(user.id),
-        recipeService.getAllRecipes(),
-      ]);
-
-      setIngredients(ingredientsData);
+      // 레시피는 항상 로드
+      const recipesData = await recipeService.getAllRecipes();
       setRecipes(recipesData);
+
+      // 식재료는 로그인한 경우에만 로드
+      if (user) {
+        const ingredientsData = await ingredientService.getAllIngredients(user.id);
+        setIngredients(ingredientsData);
+      }
     } catch (err) {
       console.error("데이터 로드 실패:", err);
       setError("데이터를 불러오는데 실패했습니다.");
@@ -44,12 +44,10 @@ export default function HomePage() {
   }, [user]);
 
   useEffect(() => {
-    if (user) {
-      loadData();
-    } else {
-      setLoading(false);
-    }
-  }, [user, loadData]);
+    loadData();
+    // 페이지 로드 시 스크롤 위치 초기화
+    resetScrollPosition();
+  }, [loadData]);
 
   // 레시피별 부족한 재료 계산
   const getMissingIngredients = (recipe: Recipe): string[] => {
@@ -153,8 +151,8 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+    <div className="bg-gray-50 pt-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
         {/* 헤더 */}
         <div className="mb-6 sm:mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">오늘 뭐 만들까요? 🍳</h1>
@@ -167,8 +165,8 @@ export default function HomePage() {
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-medium text-blue-900">로그인이 필요합니다</h3>
-                  <p className="text-sm text-blue-700 mt-1">식재료를 등록하고 개인화된 레시피를 받아보세요</p>
+                  <h3 className="text-sm font-medium text-blue-900">더 나은 경험을 위해 로그인하세요</h3>
+                  <p className="text-sm text-blue-700 mt-1">식재료를 등록하고 개인화된 레시피 추천을 받아보세요</p>
                 </div>
                 <Link href="/auth">
                   <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
@@ -242,9 +240,9 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* 추천 레시피 섹션 */}
+        {/* 레시피 섹션 */}
         <div>
-          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-6">추천 레시피</h2>
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-6">{user ? "추천 레시피" : "모든 레시피"}</h2>
           {recipes.length === 0 ? (
             <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
               <p className="text-gray-500 mb-4">등록된 레시피가 없습니다.</p>

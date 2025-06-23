@@ -206,8 +206,8 @@ export default function EditRecipePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-4 sm:py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="bg-gray-50 pt-16">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
         {/* 헤더 */}
         <div className="mb-6 sm:mb-8">
           <Link href={`/recipe/${recipe.id}`} className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-4">
