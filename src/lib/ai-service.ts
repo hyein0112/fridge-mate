@@ -33,17 +33,17 @@ export const perplexityService = {
     const apiKey = process.env.NEXT_PUBLIC_PERPLEXITY_API_KEY;
 
     if (!apiKey) {
-      throw new Error("Perplexity API key not found. Please set NEXT_PUBLIC_PERPLEXITY_API_KEY in your .env.local file");
+      throw new Error("Perplexity API 키가 설정되지 않았습니다. .env.local 파일에 NEXT_PUBLIC_PERPLEXITY_API_KEY를 추가해주세요.");
     }
 
     if (!apiKey.startsWith("pplx-")) {
-      throw new Error('Invalid Perplexity API key format. API key should start with "pplx-"');
+      throw new Error('잘못된 Perplexity API 키 형식입니다. API 키는 "pplx-"로 시작해야 합니다.');
     }
 
     const prompt = this.buildPrompt(request);
 
     try {
-      console.log("Sending request to Perplexity AI...");
+      console.log("Perplexity AI에 요청 전송 중...");
       const response = await fetch("https://api.perplexity.ai/chat/completions", {
         method: "POST",
         headers: {
@@ -56,7 +56,7 @@ export const perplexityService = {
             {
               role: "system",
               content:
-                "당신은 전문 요리사입니다. 주어진 식재료로 맛있고 실용적인 레시피를 만들어주세요. 가장 중요한 것은 주어진 재료만으로 만들 수 있는 레시피를 우선적으로 제안하는 것입니다. 부족한 재료가 있다면 최대한 적게 필요한 재료로 레시피를 만드세요. 기본적인 조미료(소금, 후추, 식용유 등)는 있다고 가정하고 사용해도 됩니다. 한국어로 답변해주세요.",
+                "당신은 한국 가정 요리의 전문가입니다. 주어진 식재료로 친숙하고 맛있는 한국 요리를 만들어주세요. 김치찌개, 김치볶음밥, 된장찌개, 계란볶음밥, 라면, 제육볶음, 닭볶음탕, 감자조림, 시금치나물 등 일상적인 한국 요리를 우선적으로 제안하세요. 가장 중요한 것은 실제로 조리 과정에서 사용하는 재료만 재료 목록에 포함하는 것입니다. 사용하지 않는 재료는 절대 포함하지 마세요. 주어진 재료만 사용하고, 간단하고 실용적인 조리법을 제공해주세요. 한국어로 답변해주세요.",
             },
             {
               role: "user",
@@ -68,16 +68,16 @@ export const perplexityService = {
         }),
       });
 
-      console.log("Perplexity API response status:", response.status);
+      console.log("Perplexity API 응답 상태:", response.status);
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("Perplexity API error response:", errorText);
-        throw new Error(`Perplexity API error: ${response.status} - ${errorText}`);
+        console.error("Perplexity API 오류 응답:", errorText);
+        throw new Error(`Perplexity API 오류: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
-      console.log("Perplexity API response data:", data);
+      console.log("Perplexity API 응답 데이터:", data);
 
       const recipeText = data.choices[0].message.content;
 
@@ -92,9 +92,35 @@ export const perplexityService = {
         // 이미지 생성 실패해도 레시피는 반환
       }
 
-      return recipe;
+      // 응답 검증 및 기본값 설정
+      const validatedRecipe = {
+        name: recipe.name || "AI 생성 레시피",
+        ingredients: Array.isArray(recipe.ingredients)
+          ? recipe.ingredients
+              .map((ing: { name?: string; quantity?: string; isAvailable?: boolean }) => ({
+                name: ing.name || "재료",
+                quantity: ing.quantity || "적당량",
+                isAvailable: ing.isAvailable !== undefined ? ing.isAvailable : true,
+              }))
+              .filter((ing) => ing.name && ing.name.trim() !== "") // 빈 재료명 제거
+          : request.ingredients.map((name) => ({ name, quantity: "적당량", isAvailable: true })),
+        instructions: Array.isArray(recipe.instructions)
+          ? recipe.instructions.filter((step: unknown) => step && typeof step === "string")
+          : ["재료를 준비합니다.", "조리합니다.", "완성!"],
+        cookingTime: typeof recipe.cookingTime === "number" ? recipe.cookingTime : 30,
+        difficulty: ["easy", "medium", "hard"].includes(recipe.difficulty) ? recipe.difficulty : "medium",
+        servings: typeof recipe.servings === "number" ? recipe.servings : 2,
+        tags: Array.isArray(recipe.tags) ? recipe.tags : ["AI생성"],
+        nutritionInfo: recipe.nutritionInfo || undefined,
+        tips: Array.isArray(recipe.tips) ? recipe.tips : [],
+      };
+
+      // 실제 사용하는 재료만 필터링 (isAvailable이 true인 것만)
+      validatedRecipe.ingredients = validatedRecipe.ingredients.filter((ing) => ing.isAvailable);
+
+      return validatedRecipe;
     } catch (error) {
-      console.error("Perplexity AI error:", error);
+      console.error("Perplexity AI 오류:", error);
       throw new Error("레시피 생성에 실패했습니다. 다시 시도해주세요.");
     }
   },
@@ -102,19 +128,18 @@ export const perplexityService = {
   buildPrompt(request: AIRecipeRequest): string {
     const { ingredients, difficulty = "medium", servings = 2, cuisine, dietary } = request;
 
-    const prompt = `다음 식재료로 만들 수 있는 창의적이고 독특한 레시피를 JSON 형식으로만 답변해주세요. 다른 설명은 하지 마세요.
+    const prompt = `다음 식재료로 만들 수 있는 친숙하고 맛있는 한국 요리를 JSON 형식으로만 답변해주세요. 다른 설명은 하지 마세요.
 
 중요한 요구사항:
-1. 주어진 재료만으로 만들 수 있는 레시피를 우선적으로 제안하세요
-2. 부족한 재료가 있다면 최대한 적게 필요한 재료로 레시피를 만드세요
-3. 기본적인 조미료(소금, 후추, 식용유 등)는 있다고 가정하고 사용해도 됩니다
-4. 기존에 흔한 요리가 아닌 창의적이고 독특한 요리를 만들어주세요
-5. 요리 이름은 매력적이고 그럴듯하게 지어주세요
-6. 조리법은 매우 자세하고 구체적으로 작성해주세요 (시간, 온도, 순서 등 포함)
-7. 모든 조리 용어와 설명은 반드시 한국어로 작성해주세요 (외국어 용어 사용 금지)
-8. 조리 과정에서 사용하는 모든 단위는 한국식 단위로 표기해주세요 (g, ml, 개, 잔 등)
+1. 주어진 재료 중에서 실제로 사용하는 재료만 재료 목록에 포함하세요. 사용하지 않는 재료는 절대 포함하지 마세요.
+2. 김치찌개, 김치볶음밥, 된장찌개, 계란볶음밥, 라면, 스팸볶음밥, 제육볶음, 닭볶음탕, 감자조림, 시금치나물 등 친숙한 한국 요리를 우선적으로 제안하세요
+3. 기본적인 조미료(소금, 후추, 식용유, 간장, 고춧가루, 밥, 물 등)는 있다고 가정하고 사용해도 됩니다
+4. 요리 이름은 한국어로 친숙하게 작성해주세요. 대신 김치 주재료 요리, 마요네즈 주재료 요리 등과 같은 요리명은 사용하지 마세요
+5. 조리법은 최대한 자세하게 실용적으로 작성해주세요
+6. 모든 조리 용어와 설명은 반드시 한국어로 작성해주세요
+7. 조리 과정에서 사용하는 모든 단위는 한국식 단위로 표기해주세요 (g, ml, 개, 잔, 큰술, 작은술 등)
 
-주요 재료: ${ingredients.join(", ")}
+주어진 재료: ${ingredients.join(", ")}
 난이도: ${difficulty === "easy" ? "쉬움" : difficulty === "medium" ? "보통" : "어려움"}
 인분: ${servings}인분
 
@@ -123,36 +148,45 @@ ${dietary && dietary.length > 0 ? `식이 제한: ${dietary.join(", ")}` : ""}
 
 다음 형식으로 정확히 답변해주세요:
 {
-  "name": "창의적인 레시피명",
+  "name": "친숙한 한국 요리명",
   "ingredients": [
-    {"name": "재료명", "quantity": "정확한 수량", "isAvailable": true}
+    {"name": "실제 사용하는 재료명만", "quantity": "정확한 수량", "isAvailable": true}
   ],
   "instructions": [
-    "1단계: 매우 자세한 조리 설명 (시간, 온도, 순서 포함)",
+    "1단계: 간단하고 실용적인 조리 설명",
     "2단계: 구체적인 조리 방법 설명",
-    "3단계: 다음 단계로 넘어가는 조건 설명"
+    "3단계: 완성 단계 설명"
   ],
-  "cookingTime": 30,
+  "cookingTime": 20,
   "difficulty": "easy",
   "servings": 2,
-  "tags": ["태그1", "태그2"],
+  "tags": ["한국요리", "태그2"],
   "tips": ["조리 팁1", "조리 팁2"]
 }
 
+요리 제안 가이드:
+- 김치가 있다면: 김치찌개, 김치볶음밥, 김치국수
+- 돼지고기가 있다면: 제육볶음, 돼지고기볶음, 삼겹살구이
+- 닭고기가 있다면: 닭볶음탕, 닭갈비, 닭볶음
+- 감자가 있다면: 감자조림, 감자볶음, 감자탕
+- 계란이 있다면: 계란볶음밥, 계란말이, 계란국
+- 라면이 있다면: 라면, 라면볶음, 라면국수
+- 스팸이 있다면: 스팸볶음밥, 스팸구이, 스팸김치찌개
+- 된장이 있다면: 된장찌개, 된장국, 된장볶음
+- 시금치가 있다면: 시금치나물, 시금치볶음, 시금치국
+
 조리법 작성 시 주의사항:
-- 각 단계를 매우 자세하게 설명 (예: "5분간 중간 불에서 저어가며 볶기")
-- 시간, 온도, 불 세기 등 구체적인 수치 포함
-- 다음 단계로 넘어가는 조건 명시 (예: "재료가 투명해질 때까지")
-- 조리 팁도 포함하여 실용성 높이기
-- 모든 조리 용어는 한국어로 작성 (예: "볶기", "끓이기", "굽기", "찌기" 등)
-- 외국어 조리 용어 사용 금지 (예: "saute", "braise", "simmer" 등 사용하지 말 것)
-- 단위는 한국식으로 표기 (예: "큰술", "작은술", "컵", "개", "g", "ml" 등)
+- 각 단계를 아주 자세하게 실용적으로 설명해주세요
+- 시간, 불 세기 등 구체적인 수치 포함
+- 한국어 조리 용어 사용 (볶기, 끓이기, 굽기, 찌기 등)
+- 단위는 한국식으로 표기 (큰술, 작은술, 컵, 개, g, ml 등)
 
 재료 목록 작성 시 주의사항:
-- 주어진 재료는 "isAvailable": true로 표시
-- 추가로 필요한 재료는 "isAvailable": false로 표시
-- 가능한 한 주어진 재료만 사용하고, 추가 재료는 최소화하세요
-- 재료명도 한국어로 작성해주세요`;
+- 실제로 조리 과정에서 사용하는 재료만 포함하세요
+- 사용하지 않는 재료는 절대 포함하지 마세요
+- 주어진 재료 중에서 사용하는 것만 "isAvailable": true로 표시
+- 추가 재료는 사용하지 마세요
+- 재료명은 한국어로 작성합니다. 대신 김치 주재료 요리, 마요네즈 주재료 요리 등과 같은 요리명은 사용하지 마세요`;
 
     return prompt;
   },
@@ -358,14 +392,31 @@ ${dietary && dietary.length > 0 ? `식이 제한: ${dietary.join(", ")}` : ""}
 
     const allIngredients = [...availableIngredients, ...basicSeasonings];
 
-    // 재료 개수에 따른 레시피 이름 생성
+    // 재료에 따른 친숙한 한국 요리 이름 생성
     let recipeName = "";
-    if (request.ingredients.length === 1) {
-      recipeName = `${request.ingredients[0]} 요리`;
-    } else if (request.ingredients.length === 2) {
-      recipeName = `${request.ingredients[0]} ${request.ingredients[1]} 요리`;
+    const ingredients = request.ingredients.map((ing) => ing.toLowerCase());
+
+    if (ingredients.some((ing) => ing.includes("김치"))) {
+      recipeName = "김치볶음밥";
+    } else if (ingredients.some((ing) => ing.includes("돼지고기") || ing.includes("삼겹살"))) {
+      recipeName = "제육볶음";
+    } else if (ingredients.some((ing) => ing.includes("닭고기"))) {
+      recipeName = "닭볶음탕";
+    } else if (ingredients.some((ing) => ing.includes("감자"))) {
+      recipeName = "감자조림";
+    } else if (ingredients.some((ing) => ing.includes("계란"))) {
+      recipeName = "계란볶음밥";
+    } else if (ingredients.some((ing) => ing.includes("라면"))) {
+      recipeName = "라면";
+    } else if (ingredients.some((ing) => ing.includes("스팸"))) {
+      recipeName = "스팸볶음밥";
+    } else if (ingredients.some((ing) => ing.includes("된장"))) {
+      recipeName = "된장찌개";
+    } else if (ingredients.some((ing) => ing.includes("시금치"))) {
+      recipeName = "시금치나물";
     } else {
-      recipeName = `${request.ingredients[0]} 주재료 요리`;
+      // 기본 요리명
+      recipeName = `${request.ingredients[0]} 요리`;
     }
 
     return {
@@ -381,7 +432,7 @@ ${dietary && dietary.length > 0 ? `식이 제한: ${dietary.join(", ")}` : ""}
       cookingTime: 20,
       difficulty: request.difficulty || "easy",
       servings: request.servings || 2,
-      tags: ["AI생성", "간단요리", "기본레시피"],
+      tags: ["한국요리", "AI생성", "간단요리"],
       tips: ["재료의 신선도를 확인하세요.", "조리 시간을 잘 지켜주세요.", "간은 조금씩 넣어가며 맞춰주세요."],
     };
   },

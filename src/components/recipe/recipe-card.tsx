@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RecipeCardProps } from "@/types";
 import { formatTime, getDifficultyText, getDifficultyColor, cn } from "@/lib/utils";
 import { Clock, ChefHat, AlertTriangle } from "lucide-react";
+import Image from "next/image";
 
 const RecipeCard = ({ recipe, missingIngredients, onClick }: RecipeCardProps) => {
   return (
@@ -20,7 +21,7 @@ const RecipeCard = ({ recipe, missingIngredients, onClick }: RecipeCardProps) =>
       <CardContent className="pt-0">
         {recipe.image && (
           <div className="mb-4">
-            <img src={recipe.image} alt={recipe.name} className="w-full h-32 sm:h-48 object-cover rounded-lg" />
+            <Image src={recipe.image} alt={recipe.name} width={256} height={128} className="w-full h-32 sm:h-48 object-cover rounded-lg" />
           </div>
         )}
 

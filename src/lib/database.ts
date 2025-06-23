@@ -146,8 +146,11 @@ export const recipeService = {
             difficulty: item.difficulty,
             servings: item.servings,
             tags: item.tags || [],
+            tips: item.tips || [],
             createdBy: item.created_by,
+            authorEmail: item.author_email,
             createdAt: new Date(item.created_at),
+            updatedAt: item.updated_at ? new Date(item.updated_at) : undefined,
           };
         } catch (parseError) {
           console.error("Error parsing recipe data:", parseError);
@@ -162,8 +165,11 @@ export const recipeService = {
             difficulty: item.difficulty,
             servings: item.servings,
             tags: item.tags || [],
+            tips: item.tips || [],
             createdBy: item.created_by,
+            authorEmail: item.author_email,
             createdAt: new Date(item.created_at),
+            updatedAt: item.updated_at ? new Date(item.updated_at) : undefined,
           };
         }
       }) || []
@@ -171,7 +177,7 @@ export const recipeService = {
   },
 
   // 레시피 추가
-  async addRecipe(recipe: Omit<Recipe, "id" | "createdAt">, userId: string): Promise<Recipe> {
+  async addRecipe(recipe: Omit<Recipe, "id" | "createdAt"> & { authorEmail?: string }, userId: string): Promise<Recipe> {
     const { data, error } = await supabase
       .from("recipes")
       .insert({
@@ -184,6 +190,7 @@ export const recipeService = {
         servings: recipe.servings,
         tags: recipe.tags,
         created_by: userId,
+        author_email: recipe.authorEmail,
       })
       .select()
       .single();
@@ -207,12 +214,15 @@ export const recipeService = {
         difficulty: data.difficulty,
         servings: data.servings,
         tags: data.tags || [],
+        tips: data.tips || [],
         createdBy: data.created_by,
+        authorEmail: data.author_email,
         createdAt: new Date(data.created_at),
+        updatedAt: data.updated_at ? new Date(data.updated_at) : undefined,
       };
     } catch (parseError) {
-      console.error("Error parsing added recipe data:", parseError);
-      throw new Error("레시피 데이터 파싱에 실패했습니다.");
+      console.error("Error parsing recipe data:", parseError);
+      throw parseError;
     }
   },
 
@@ -223,6 +233,59 @@ export const recipeService = {
     if (error) {
       console.error("Error deleting recipe:", error);
       throw error;
+    }
+  },
+
+  // 레시피 수정
+  async updateRecipe(id: string, recipe: Recipe, userId: string): Promise<Recipe> {
+    const { data, error } = await supabase
+      .from("recipes")
+      .update({
+        name: recipe.name,
+        image: recipe.image,
+        ingredients: JSON.stringify(recipe.ingredients),
+        instructions: JSON.stringify(recipe.instructions),
+        cooking_time: recipe.cookingTime,
+        difficulty: recipe.difficulty,
+        servings: recipe.servings,
+        tags: recipe.tags,
+        tips: recipe.tips,
+        author_email: recipe.authorEmail,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .eq("created_by", userId) // 작성자만 수정 가능
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error updating recipe:", error);
+      throw error;
+    }
+
+    try {
+      const parsedIngredients = JSON.parse(data.ingredients);
+      const parsedInstructions = JSON.parse(data.instructions);
+
+      return {
+        id: data.id,
+        name: data.name,
+        image: data.image,
+        ingredients: Array.isArray(parsedIngredients) ? parsedIngredients : [],
+        instructions: Array.isArray(parsedInstructions) ? parsedInstructions : [],
+        cookingTime: data.cooking_time,
+        difficulty: data.difficulty,
+        servings: data.servings,
+        tags: data.tags || [],
+        tips: data.tips || [],
+        createdBy: data.created_by,
+        authorEmail: data.author_email,
+        createdAt: new Date(data.created_at),
+        updatedAt: data.updated_at ? new Date(data.updated_at) : undefined,
+      };
+    } catch (parseError) {
+      console.error("Error parsing recipe data:", parseError);
+      throw parseError;
     }
   },
 };

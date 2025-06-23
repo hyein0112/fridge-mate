@@ -1,33 +1,30 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Ingredient } from "@/types";
 import { Plus, Trash2, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { ingredientService } from "@/lib/database";
+import { useAuth } from "@/lib/auth-context";
 
 export default function MyIngredientsPage() {
+  const { user } = useAuth();
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // 임시 사용자 ID (나중에 인증 시스템으로 교체)
-  const TEMP_USER_ID = "00000000-0000-0000-0000-000000000000";
-
   const categories = ["all", "야채", "육류", "유제품", "곡물", "조미료", "기타"];
 
-  useEffect(() => {
-    loadIngredients();
-  }, []);
+  const loadIngredients = useCallback(async () => {
+    if (!user) return;
 
-  const loadIngredients = async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await ingredientService.getAllIngredients(TEMP_USER_ID);
+      const data = await ingredientService.getAllIngredients(user.id);
       setIngredients(data);
     } catch (err) {
       console.error("식재료 로드 실패:", err);
@@ -35,7 +32,13 @@ export default function MyIngredientsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      loadIngredients();
+    }
+  }, [user, loadIngredients]);
 
   const filteredIngredients = selectedCategory === "all" ? ingredients : ingredients.filter((ing) => ing.category === selectedCategory);
 
@@ -71,6 +74,20 @@ export default function MyIngredientsPage() {
   const expiringIngredients = ingredients.filter((ing) => ing.expiryDate && (isExpiringSoon(ing.expiryDate) || isExpired(ing.expiryDate)));
 
   const expiredIngredients = ingredients.filter((ing) => ing.expiryDate && isExpired(ing.expiryDate));
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">로그인이 필요합니다</h2>
+          <p className="text-gray-600 mb-4">내 식재료를 확인하려면 로그인해주세요.</p>
+          <Link href="/auth">
+            <Button>로그인하기</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -199,45 +216,32 @@ export default function MyIngredientsPage() {
                 )}
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredIngredients.map((ingredient) => {
                   const expiryStatus = ingredient.expiryDate ? getExpiryStatus(ingredient.expiryDate) : null;
-
                   return (
-                    <div
-                      key={ingredient.id}
-                      className={`p-3 sm:p-4 border rounded-lg ${
-                        ingredient.expiryDate && isExpired(ingredient.expiryDate)
-                          ? "bg-red-50 border-red-200"
-                          : ingredient.expiryDate && isExpiringSoon(ingredient.expiryDate)
-                          ? "bg-yellow-50 border-yellow-200"
-                          : "bg-white border-gray-200"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-medium text-gray-900 truncate">{ingredient.name}</h3>
-                          {ingredient.quantity && <p className="text-sm text-gray-500">{ingredient.quantity}</p>}
+                    <Card key={ingredient.id} className="relative">
+                      <CardContent className="p-4">
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="flex-1">
+                            <h3 className="font-medium text-gray-900 mb-1">{ingredient.name}</h3>
+                            {ingredient.quantity && <p className="text-sm text-gray-600 mb-1">수량: {ingredient.quantity}</p>}
+                            {ingredient.category && <p className="text-sm text-gray-500 mb-2">카테고리: {ingredient.category}</p>}
+                            {ingredient.expiryDate && (
+                              <div className="flex items-center space-x-2">
+                                <span className="text-xs text-gray-500">유통기한:</span>
+                                <span className={`text-xs px-2 py-1 rounded-full ${expiryStatus?.color}`}>
+                                  {ingredient.expiryDate.toLocaleDateString()} ({expiryStatus?.text})
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          <button onClick={() => handleDelete(ingredient.id)} className="text-red-500 hover:text-red-700 p-1" title="삭제">
+                            <Trash2 className="h-4 w-4" />
+                          </button>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDelete(ingredient.id)}
-                          className="text-red-600 hover:text-red-700 flex-shrink-0"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-
-                      <div className="flex items-center justify-between text-sm">
-                        {ingredient.category && <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded">{ingredient.category}</span>}
-                        {expiryStatus && <span className={`px-2 py-1 rounded ${expiryStatus.color}`}>{expiryStatus.text}</span>}
-                      </div>
-
-                      {ingredient.expiryDate && (
-                        <p className="text-xs text-gray-500 mt-2">유통기한: {ingredient.expiryDate.toLocaleDateString()}</p>
-                      )}
-                    </div>
+                      </CardContent>
+                    </Card>
                   );
                 })}
               </div>

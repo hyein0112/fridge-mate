@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RecipeFormData, Ingredient } from "@/types";
@@ -8,8 +8,10 @@ import { Save, Sparkles, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { recipeService, ingredientService } from "@/lib/database";
 import { aiService } from "@/lib/ai-service";
+import { useAuth } from "@/lib/auth-context";
 
 export default function NewRecipePage() {
+  const { user } = useAuth();
   const [formData, setFormData] = useState<RecipeFormData>({
     name: "",
     image: "",
@@ -25,27 +27,33 @@ export default function NewRecipePage() {
   const [availableIngredients, setAvailableIngredients] = useState<Ingredient[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // 임시 사용자 ID (나중에 인증 시스템으로 교체)
-  const TEMP_USER_ID = "00000000-0000-0000-0000-000000000000";
+  const loadAvailableIngredients = useCallback(async () => {
+    if (!user) return;
 
-  useEffect(() => {
-    loadAvailableIngredients();
-  }, []);
-
-  const loadAvailableIngredients = async () => {
     try {
       setLoading(true);
-      const data = await ingredientService.getAllIngredients(TEMP_USER_ID);
+      const data = await ingredientService.getAllIngredients(user.id);
       setAvailableIngredients(data);
     } catch (err) {
       console.error("식재료 로드 실패:", err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      loadAvailableIngredients();
+    }
+  }, [user, loadAvailableIngredients]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!user) {
+      alert("로그인이 필요합니다.");
+      return;
+    }
 
     if (!formData.name.trim() || !formData.ingredients.trim() || !formData.instructions.trim()) {
       alert("필수 항목을 모두 입력해주세요.");
@@ -76,10 +84,11 @@ export default function NewRecipePage() {
         difficulty: formData.difficulty,
         servings: formData.servings,
         tags: formData.tags,
-        createdBy: TEMP_USER_ID,
+        createdBy: user.id,
+        authorEmail: user.email || "",
       };
 
-      await recipeService.addRecipe(recipeData, TEMP_USER_ID);
+      await recipeService.addRecipe(recipeData, user.id);
       alert("레시피가 저장되었습니다!");
 
       // 폼 초기화
@@ -157,6 +166,20 @@ export default function NewRecipePage() {
     }));
   };
 
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">로그인이 필요합니다</h2>
+          <p className="text-gray-600 mb-4">레시피를 등록하려면 로그인해주세요.</p>
+          <Link href="/auth">
+            <Button>로그인하기</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 py-4 sm:py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -205,13 +228,13 @@ export default function NewRecipePage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">재료 *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">식재료 *</label>
                     <textarea
                       value={formData.ingredients}
                       onChange={(e) => setFormData((prev) => ({ ...prev, ingredients: e.target.value }))}
-                      rows={4}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
-                      placeholder="재료를 한 줄씩 입력하세요&#10;예: 감자 2개&#10;양파 1개&#10;계란 3개"
+                      rows={4}
+                      placeholder="감자 2개&#10;양파 1개&#10;계란 3개"
                       required
                       disabled={isSubmitting}
                     />
@@ -222,9 +245,9 @@ export default function NewRecipePage() {
                     <textarea
                       value={formData.instructions}
                       onChange={(e) => setFormData((prev) => ({ ...prev, instructions: e.target.value }))}
-                      rows={6}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
-                      placeholder="조리 단계를 한 줄씩 입력하세요&#10;예: 1. 감자를 깍둑썰기합니다.&#10;2. 양파를 다집니다.&#10;3. 팬에 기름을 두릅니다."
+                      rows={6}
+                      placeholder="1. 감자를 깨끗이 씻어서 껍질을 벗깁니다.&#10;2. 양파를 다집니다.&#10;3. 감자를 작은 조각으로 썰어줍니다."
                       required
                       disabled={isSubmitting}
                     />
@@ -272,8 +295,8 @@ export default function NewRecipePage() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">태그</label>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      {["한식", "양식", "중식", "일식", "간단", "저렴", "건강", "아침", "점심", "저녁"].map((tag) => (
+                    <div className="flex flex-wrap gap-2">
+                      {["한식", "양식", "중식", "일식", "간단", "건강식", "디저트", "메인요리", "반찬"].map((tag) => (
                         <label key={tag} className="flex items-center space-x-2">
                           <input
                             type="checkbox"
@@ -288,16 +311,18 @@ export default function NewRecipePage() {
                     </div>
                   </div>
 
-                  <Button type="submit" className="w-full" disabled={isSubmitting}>
-                    <Save className="h-4 w-4 mr-2" />
-                    {isSubmitting ? "저장 중..." : "레시피 저장"}
-                  </Button>
+                  <div className="flex space-x-4">
+                    <Button type="submit" disabled={isSubmitting} className="flex items-center space-x-2 bg-orange-600 hover:bg-orange-700">
+                      <Save className="h-4 w-4" />
+                      <span>{isSubmitting ? "저장 중..." : "레시피 저장"}</span>
+                    </Button>
+                  </div>
                 </form>
               </CardContent>
             </Card>
           </div>
 
-          {/* AI 생성 및 보유 식재료 */}
+          {/* AI 생성 및 식재료 */}
           <div className="space-y-6">
             {/* AI 레시피 생성 */}
             <Card>
@@ -305,53 +330,48 @@ export default function NewRecipePage() {
                 <CardTitle>AI 레시피 생성</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-gray-600 mb-4">입력한 식재료로 AI가 레시피를 생성해드립니다.</p>
+                <p className="text-sm text-gray-600 mb-4">입력한 식재료로 AI가 레시피를 자동으로 생성해드립니다.</p>
                 <Button
                   onClick={handleAIGenerate}
-                  className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
-                  disabled={isGenerating || isSubmitting}
+                  disabled={isGenerating || !formData.ingredients.trim()}
+                  className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
                 >
                   <Sparkles className="h-4 w-4 mr-2" />
-                  {isGenerating ? "생성 중..." : "AI로 레시피 생성"}
+                  {isGenerating ? "생성 중..." : "AI 레시피 생성"}
                 </Button>
               </CardContent>
             </Card>
 
-            {/* 보유 식재료 */}
+            {/* 내 식재료 */}
             <Card>
               <CardHeader>
-                <CardTitle>보유 식재료</CardTitle>
+                <CardTitle>내 식재료</CardTitle>
               </CardHeader>
               <CardContent>
                 {loading ? (
-                  <div className="text-center py-4">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-500 mx-auto mb-2"></div>
-                    <p className="text-sm text-gray-500">로딩 중...</p>
-                  </div>
-                ) : availableIngredients.length === 0 ? (
-                  <div className="text-center py-4">
-                    <p className="text-sm text-gray-500 mb-2">등록된 식재료가 없습니다.</p>
-                    <Link href="/ingredients">
-                      <Button size="sm" variant="outline">
-                        식재료 추가하기
-                      </Button>
-                    </Link>
+                  <p className="text-sm text-gray-500">로딩 중...</p>
+                ) : availableIngredients.length > 0 ? (
+                  <div className="space-y-2">
+                    <p className="text-sm text-gray-600 mb-3">클릭하여 식재료를 추가하세요</p>
+                    {availableIngredients.map((ingredient) => (
+                      <button
+                        key={ingredient.id}
+                        onClick={() => addAvailableIngredient(ingredient)}
+                        className="block w-full text-left p-2 text-sm bg-gray-50 hover:bg-gray-100 rounded-md transition-colors"
+                        disabled={isSubmitting}
+                      >
+                        {ingredient.name} {ingredient.quantity && `(${ingredient.quantity})`}
+                      </button>
+                    ))}
                   </div>
                 ) : (
-                  <div className="space-y-2">
-                    <p className="text-sm text-gray-600 mb-3">클릭하여 재료에 추가:</p>
-                    <div className="max-h-60 overflow-y-auto space-y-1">
-                      {availableIngredients.map((ingredient) => (
-                        <button
-                          key={ingredient.id}
-                          onClick={() => addAvailableIngredient(ingredient)}
-                          className="w-full text-left p-2 text-sm bg-gray-50 hover:bg-gray-100 rounded border border-gray-200 transition-colors"
-                          disabled={isSubmitting}
-                        >
-                          {ingredient.name} {ingredient.quantity && `(${ingredient.quantity})`}
-                        </button>
-                      ))}
-                    </div>
+                  <div className="text-center py-4">
+                    <p className="text-sm text-gray-500 mb-2">등록된 식재료가 없습니다</p>
+                    <Link href="/ingredients">
+                      <Button variant="outline" size="sm">
+                        식재료 등록하기
+                      </Button>
+                    </Link>
                   </div>
                 )}
               </CardContent>

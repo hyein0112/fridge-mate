@@ -17,8 +17,11 @@ export interface Recipe {
   difficulty: "easy" | "medium" | "hard";
   servings: number;
   tags: string[];
+  tips?: string[];
   createdBy: string;
+  authorEmail?: string;
   createdAt: Date;
+  updatedAt?: Date;
 }
 
 export interface RecipeIngredient {

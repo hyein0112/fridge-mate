@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import RecipeCard from "@/components/recipe/recipe-card";
 import { Ingredient, Recipe } from "@/types";
@@ -9,8 +9,10 @@ import { ingredientService, recipeService } from "@/lib/database";
 import { aiService } from "@/lib/ai-service";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
 
 export default function HomePage() {
+  const { user } = useAuth();
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
@@ -18,21 +20,16 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  // 임시 사용자 ID (나중에 인증 시스템으로 교체)
-  const TEMP_USER_ID = "00000000-0000-0000-0000-000000000000";
+  const loadData = useCallback(async () => {
+    if (!user) return;
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
 
       // 병렬로 데이터 로드
       const [ingredientsData, recipesData] = await Promise.all([
-        ingredientService.getAllIngredients(TEMP_USER_ID),
+        ingredientService.getAllIngredients(user.id),
         recipeService.getAllRecipes(),
       ]);
 
@@ -44,7 +41,15 @@ export default function HomePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      loadData();
+    } else {
+      setLoading(false);
+    }
+  }, [user, loadData]);
 
   // 레시피별 부족한 재료 계산
   const getMissingIngredients = (recipe: Recipe): string[] => {
@@ -62,6 +67,11 @@ export default function HomePage() {
   };
 
   const handleAIGenerate = async () => {
+    if (!user) {
+      alert("로그인이 필요합니다.");
+      return;
+    }
+
     if (ingredients.length === 0) {
       alert("먼저 식재료를 등록해주세요!");
       return;
@@ -73,31 +83,51 @@ export default function HomePage() {
       // AI 레시피 생성
       const ingredientNames = ingredients.map((ing) => ing.name).filter((name) => name && name.trim() !== "");
 
+      console.log("AI 레시피 생성 시작:", { ingredients: ingredientNames });
+
       const aiRecipe = await aiService.generateRecipe({
         ingredients: ingredientNames,
         difficulty: "easy",
         servings: 2,
       });
 
+      console.log("AI 레시피 생성 완료:", aiRecipe);
+
       // 생성된 레시피를 데이터베이스에 저장
       const savedRecipe = await recipeService.addRecipe(
         {
           ...aiRecipe,
-          createdBy: TEMP_USER_ID,
+          createdBy: user.id,
+          authorEmail: user.email || "",
         },
-        TEMP_USER_ID
+        user.id
       );
+
+      console.log("레시피 저장 완료:", savedRecipe);
 
       // 레시피 상세 페이지로 이동
       router.push(`/recipe/${savedRecipe.id}`);
     } catch (error) {
       console.error("AI 레시피 생성 실패:", error);
-      alert("AI 레시피 생성에 실패했습니다. 다시 시도해주세요.");
+
+      // 더 자세한 오류 메시지 표시
+      let errorMessage = "AI 레시피 생성에 실패했습니다. 다시 시도해주세요.";
+
+      if (error instanceof Error) {
+        if (error.message.includes("API 키")) {
+          errorMessage = "Perplexity API 키가 설정되지 않았습니다. 관리자에게 문의해주세요.";
+        } else if (error.message.includes("네트워크")) {
+          errorMessage = "네트워크 연결을 확인해주세요.";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+
+      alert(errorMessage);
     } finally {
       setAiLoading(false);
     }
   };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -131,63 +161,86 @@ export default function HomePage() {
           <p className="text-sm sm:text-base text-gray-600">보유한 식재료로 만들 수 있는 레시피를 추천해드려요</p>
         </div>
 
-        {/* 보유 식재료 섹션 */}
-        <div className="mb-6 sm:mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-            <h2 className="text-lg sm:text-xl font-semibold text-gray-900">보유 식재료</h2>
-            <Link href="/ingredients">
-              <Button variant="outline" size="sm" className="w-full sm:w-auto">
-                <Plus className="h-4 w-4 mr-2" />
-                식재료 추가
-              </Button>
-            </Link>
+        {/* 로그인 안내 */}
+        {!user && (
+          <div className="mb-6 sm:mb-8">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-medium text-blue-900">로그인이 필요합니다</h3>
+                  <p className="text-sm text-blue-700 mt-1">식재료를 등록하고 개인화된 레시피를 받아보세요</p>
+                </div>
+                <Link href="/auth">
+                  <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
+                    로그인하기
+                  </Button>
+                </Link>
+              </div>
+            </div>
           </div>
-          {ingredients.length === 0 ? (
-            <div className="text-center py-8 bg-white rounded-lg border border-gray-200">
-              <p className="text-gray-500 mb-4">등록된 식재료가 없습니다.</p>
+        )}
+
+        {/* 보유 식재료 섹션 */}
+        {user && (
+          <div className="mb-6 sm:mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900">보유 식재료</h2>
               <Link href="/ingredients">
-                <Button size="sm">
-                  <Plus className="h-4 w-4 mr-2" />첫 식재료 추가하기
+                <Button variant="outline" size="sm" className="w-full sm:w-auto">
+                  <Plus className="h-4 w-4 mr-2" />
+                  식재료 추가
                 </Button>
               </Link>
             </div>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {ingredients.slice(0, 10).map((ingredient) => (
-                <span key={ingredient.id} className="px-3 py-1 bg-white border border-gray-200 rounded-full text-sm text-gray-700">
-                  {ingredient.name} {ingredient.quantity && `(${ingredient.quantity})`}
-                </span>
-              ))}
-              {ingredients.length > 10 && (
-                <span className="px-3 py-1 bg-gray-100 border border-gray-200 rounded-full text-sm text-gray-500">
-                  +{ingredients.length - 10}개 더
-                </span>
-              )}
-            </div>
-          )}
-        </div>
+            {ingredients.length === 0 ? (
+              <div className="text-center py-8 bg-white rounded-lg border border-gray-200">
+                <p className="text-gray-500 mb-4">등록된 식재료가 없습니다.</p>
+                <Link href="/ingredients">
+                  <Button size="sm">
+                    <Plus className="h-4 w-4 mr-2" />첫 식재료 추가하기
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {ingredients.slice(0, 10).map((ingredient) => (
+                  <span key={ingredient.id} className="px-3 py-1 bg-white border border-gray-200 rounded-full text-sm text-gray-700">
+                    {ingredient.name} {ingredient.quantity && `(${ingredient.quantity})`}
+                  </span>
+                ))}
+                {ingredients.length > 10 && (
+                  <span className="px-3 py-1 bg-gray-100 border border-gray-200 rounded-full text-sm text-gray-500">
+                    +{ingredients.length - 10}개 더
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* AI 레시피 생성 버튼 */}
-        <div className="mb-6 sm:mb-8">
-          <Button
-            onClick={handleAIGenerate}
-            disabled={aiLoading || ingredients.length === 0}
-            className="w-full sm:w-auto bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 disabled:opacity-50"
-            size="lg"
-          >
-            {aiLoading ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                AI 레시피 생성 중...
-              </>
-            ) : (
-              <>
-                <Sparkles className="h-4 w-4 mr-2" />
-                AI로 레시피 추천받기
-              </>
-            )}
-          </Button>
-        </div>
+        {user && (
+          <div className="mb-6 sm:mb-8">
+            <Button
+              onClick={handleAIGenerate}
+              disabled={aiLoading}
+              className="w-full sm:w-auto bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 disabled:opacity-50"
+              size="lg"
+            >
+              {aiLoading ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  AI 레시피 생성 중...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  AI로 레시피 추천받기
+                </>
+              )}
+            </Button>
+          </div>
+        )}
 
         {/* 추천 레시피 섹션 */}
         <div>
@@ -195,28 +248,31 @@ export default function HomePage() {
           {recipes.length === 0 ? (
             <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
               <p className="text-gray-500 mb-4">등록된 레시피가 없습니다.</p>
-              <Link href="/recipe/new">
-                <Button size="sm">
-                  <Plus className="h-4 w-4 mr-2" />첫 레시피 추가하기
-                </Button>
-              </Link>
+              {user ? (
+                <Link href="/recipe/new">
+                  <Button size="sm">
+                    <Plus className="h-4 w-4 mr-2" />첫 레시피 추가하기
+                  </Button>
+                </Link>
+              ) : (
+                <Link href="/auth">
+                  <Button size="sm">로그인하고 레시피 추가하기</Button>
+                </Link>
+              )}
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {recipes
-                .map((recipe) => ({
-                  recipe,
-                  missingCount: getMissingIngredients(recipe).length,
-                }))
-                .sort((a, b) => a.missingCount - b.missingCount) // 부족한 재료가 적은 순으로 정렬
-                .map(({ recipe }) => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+              {recipes.map((recipe) => {
+                const missingIngredients = getMissingIngredients(recipe);
+                return (
                   <RecipeCard
                     key={recipe.id}
                     recipe={recipe}
-                    missingIngredients={getMissingIngredients(recipe)}
+                    missingIngredients={missingIngredients}
                     onClick={() => handleRecipeClick(recipe.id)}
                   />
-                ))}
+                );
+              })}
             </div>
           )}
         </div>

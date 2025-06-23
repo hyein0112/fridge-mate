@@ -1,14 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Ingredient, IngredientFormData } from "@/types";
 import { Plus, Trash2, Edit, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { ingredientService } from "@/lib/database";
+import { useAuth } from "@/lib/auth-context";
 
 export default function IngredientsPage() {
+  const { user } = useAuth();
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [formData, setFormData] = useState<IngredientFormData>({
     name: "",
@@ -21,18 +23,13 @@ export default function IngredientsPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // 임시 사용자 ID (나중에 인증 시스템으로 교체)
-  const TEMP_USER_ID = "00000000-0000-0000-0000-000000000000";
+  const loadIngredients = useCallback(async () => {
+    if (!user) return;
 
-  useEffect(() => {
-    loadIngredients();
-  }, []);
-
-  const loadIngredients = async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await ingredientService.getAllIngredients(TEMP_USER_ID);
+      const data = await ingredientService.getAllIngredients(user.id);
       setIngredients(data);
     } catch (err) {
       console.error("식재료 로드 실패:", err);
@@ -40,10 +37,21 @@ export default function IngredientsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      loadIngredients();
+    }
+  }, [user, loadIngredients]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!user) {
+      alert("로그인이 필요합니다.");
+      return;
+    }
 
     if (!formData.name.trim()) return;
 
@@ -64,7 +72,7 @@ export default function IngredientsPage() {
         setIsEditing(null);
       } else {
         // 추가
-        const newIngredient = await ingredientService.addIngredient(ingredientData, TEMP_USER_ID);
+        const newIngredient = await ingredientService.addIngredient(ingredientData, user.id);
         setIngredients((prev) => [...prev, newIngredient]);
       }
 
@@ -101,6 +109,12 @@ export default function IngredientsPage() {
 
   const handleBulkAdd = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!user) {
+      alert("로그인이 필요합니다.");
+      return;
+    }
+
     const form = e.target as HTMLFormElement;
     const textarea = form.elements.namedItem("bulkIngredients") as HTMLTextAreaElement;
     const ingredientsText = textarea.value.trim();
@@ -115,7 +129,7 @@ export default function IngredientsPage() {
         .map((name) => name.trim())
         .filter((name) => name.length > 0);
 
-      const newIngredients = await ingredientService.bulkAddIngredients(ingredientNames, TEMP_USER_ID);
+      const newIngredients = await ingredientService.bulkAddIngredients(ingredientNames, user.id);
       setIngredients((prev) => [...prev, ...newIngredients]);
       textarea.value = "";
     } catch (err) {
@@ -136,6 +150,20 @@ export default function IngredientsPage() {
   const isExpired = (date: Date) => {
     return date < new Date();
   };
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">로그인이 필요합니다</h2>
+          <p className="text-gray-600 mb-4">식재료를 등록하려면 로그인해주세요.</p>
+          <Link href="/auth">
+            <Button>로그인하기</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

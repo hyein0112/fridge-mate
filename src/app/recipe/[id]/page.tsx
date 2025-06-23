@@ -4,13 +4,16 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Clock, Users, ChefHat, Tag } from "lucide-react";
+import { ArrowLeft, Clock, Users, ChefHat, Tag, Edit } from "lucide-react";
 import { Recipe } from "@/types";
 import { recipeService } from "@/lib/database";
+import { useAuth } from "@/lib/auth-context";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function RecipeDetailPage() {
   const params = useParams();
+  const { user } = useAuth();
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -103,20 +106,32 @@ export default function RecipeDetailPage() {
             <ArrowLeft className="h-4 w-4 mr-2" />
             메인으로 돌아가기
           </Link>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">{recipe.name}</h1>
-          <div className="flex flex-wrap gap-2 items-center text-sm text-gray-600">
-            <div className="flex items-center gap-1">
-              <Clock className="h-4 w-4" />
-              <span>{recipe.cookingTime}분</span>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">{recipe.name}</h1>
+              <div className="flex flex-wrap gap-2 items-center text-sm text-gray-600">
+                <div className="flex items-center gap-1">
+                  <Clock className="h-4 w-4" />
+                  <span>{recipe.cookingTime}분</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Users className="h-4 w-4" />
+                  <span>{recipe.servings}인분</span>
+                </div>
+                <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs ${getDifficultyColor(recipe.difficulty)}`}>
+                  <ChefHat className="h-3 w-3" />
+                  <span>{getDifficultyText(recipe.difficulty)}</span>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-1">
-              <Users className="h-4 w-4" />
-              <span>{recipe.servings}인분</span>
-            </div>
-            <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs ${getDifficultyColor(recipe.difficulty)}`}>
-              <ChefHat className="h-3 w-3" />
-              <span>{getDifficultyText(recipe.difficulty)}</span>
-            </div>
+            {user && recipe.createdBy === user.id && (
+              <Link href={`/recipe/${recipe.id}/edit`}>
+                <Button variant="outline" size="sm">
+                  <Edit className="h-4 w-4 mr-2" />
+                  수정
+                </Button>
+              </Link>
+            )}
           </div>
         </div>
 
@@ -126,7 +141,7 @@ export default function RecipeDetailPage() {
             <div className="lg:col-span-1">
               <Card>
                 <CardContent className="p-0">
-                  <img src={recipe.image} alt={recipe.name} className="w-full h-64 object-cover rounded-lg" />
+                  <Image src={recipe.image} alt={recipe.name} className="w-full h-64 object-cover rounded-lg" width={256} height={256} />
                 </CardContent>
               </Card>
             </div>
@@ -174,6 +189,29 @@ export default function RecipeDetailPage() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* 조리 팁 */}
+            {recipe.tips && recipe.tips.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>조리 팁</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {recipe.tips.map((tip, index) => (
+                      <div key={index} className="flex gap-3">
+                        <div className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-bold">
+                          💡
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-gray-700 leading-relaxed">{tip}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* 태그 */}
             {recipe.tags && recipe.tags.length > 0 && (

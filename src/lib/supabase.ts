@@ -50,6 +50,7 @@ export interface Database {
           servings: number;
           tags: string[];
           created_by: string;
+          author_email?: string;
           created_at: string;
         };
         Insert: {
@@ -63,6 +64,7 @@ export interface Database {
           servings: number;
           tags: string[];
           created_by: string;
+          author_email?: string;
           created_at?: string;
         };
         Update: {
@@ -76,6 +78,7 @@ export interface Database {
           servings?: number;
           tags?: string[];
           created_by?: string;
+          author_email?: string;
           created_at?: string;
         };
       };
