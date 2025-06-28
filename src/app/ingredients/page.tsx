@@ -11,7 +11,7 @@ import { useAuth } from "@/lib/auth-context";
 import { resetScrollPosition } from "@/lib/utils";
 
 export default function IngredientsPage() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [formData, setFormData] = useState<IngredientFormData>({
     name: "",
@@ -20,7 +20,6 @@ export default function IngredientsPage() {
     category: "",
   });
   const [isEditing, setIsEditing] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -28,15 +27,12 @@ export default function IngredientsPage() {
     if (!user) return;
 
     try {
-      setLoading(true);
       setError(null);
       const data = await ingredientService.getAllIngredients(user.id);
       setIngredients(data);
     } catch (err) {
       console.error("식재료 로드 실패:", err);
       setError("식재료를 불러오는데 실패했습니다.");
-    } finally {
-      setLoading(false);
     }
   }, [user]);
 
@@ -154,26 +150,26 @@ export default function IngredientsPage() {
     return date < new Date();
   };
 
-  if (!user) {
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div style={{ minHeight: "calc(100vh - 64px)" }} className="bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">로그인이 필요합니다</h2>
-          <p className="text-gray-600 mb-4">식재료를 등록하려면 로그인해주세요.</p>
-          <Link href="/auth">
-            <Button>로그인하기</Button>
-          </Link>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">로딩중...</p>
         </div>
       </div>
     );
   }
 
-  if (loading) {
+  if (!user) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div style={{ minHeight: "calc(100vh - 64px)" }} className="flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">식재료를 불러오는 중...</p>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">로그인이 필요합니다</h2>
+          <p className="text-gray-600 mb-4">서비스를 이용하려면 로그인해주세요.</p>
+          <Link href="/auth">
+            <Button className="bg-white text-gray-900 border">로그인하기</Button>
+          </Link>
         </div>
       </div>
     );
@@ -181,7 +177,7 @@ export default function IngredientsPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div style={{ minHeight: "calc(100vh - 64px)" }} className="bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <p className="text-red-600 mb-4">{error}</p>
           <Button onClick={loadIngredients} variant="outline">
@@ -218,7 +214,7 @@ export default function IngredientsPage() {
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    className="w-full px-3 py-2 border border-gray-900 text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
                     placeholder="예: 감자, 양파, 계란"
                     required
                     disabled={submitting}
@@ -231,7 +227,7 @@ export default function IngredientsPage() {
                     type="text"
                     value={formData.quantity}
                     onChange={(e) => setFormData((prev) => ({ ...prev, quantity: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    className="w-full px-3 py-2 border border-gray-900 text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
                     placeholder="예: 3개, 500g"
                     disabled={submitting}
                   />
@@ -243,7 +239,7 @@ export default function IngredientsPage() {
                     type="date"
                     value={formData.expiryDate}
                     onChange={(e) => setFormData((prev) => ({ ...prev, expiryDate: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    className="w-full px-3 py-2 border border-gray-900 text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
                     disabled={submitting}
                   />
                 </div>
@@ -253,7 +249,7 @@ export default function IngredientsPage() {
                   <select
                     value={formData.category}
                     onChange={(e) => setFormData((prev) => ({ ...prev, category: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    className="w-full px-3 py-2 border border-gray-900 text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
                     disabled={submitting}
                   >
                     <option value="">카테고리 선택</option>
@@ -286,12 +282,12 @@ export default function IngredientsPage() {
                   <textarea
                     name="bulkIngredients"
                     rows={4}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    className="w-full px-3 py-2 border border-gray-900 text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
                     placeholder="여러 식재료를 콤마(,) 또는 줄바꿈으로 구분하여 입력하세요&#10;예: 감자, 양파&#10;계란, 돼지고기"
                     disabled={submitting}
                   />
                 </div>
-                <Button type="submit" variant="outline" className="w-full" disabled={submitting}>
+                <Button type="submit" variant="outline" className="w-full bg-white text-gray-900 border" disabled={submitting}>
                   {submitting ? "추가 중..." : "일괄 추가"}
                 </Button>
               </form>

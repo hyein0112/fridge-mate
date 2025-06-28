@@ -125,7 +125,7 @@ export default function APITestPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-4 sm:py-8">
+    <div style={{ minHeight: "calc(100vh - 64px)" }} className="bg-gray-50 py-4 sm:py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* 헤더 */}
         <div className="mb-6 sm:mb-8">

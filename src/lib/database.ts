@@ -126,54 +126,110 @@ export const recipeService = {
     const { data, error } = await supabase.from("recipes").select("*").order("created_at", { ascending: false });
 
     if (error) {
-      console.error("Error fetching recipes:", error);
-      throw error;
+      console.error("레시피 조회 실패:", error);
+      throw new Error("레시피를 불러오는데 실패했습니다.");
     }
 
-    return (
-      data?.map((item) => {
-        try {
-          const parsedIngredients = JSON.parse(item.ingredients);
-          const parsedInstructions = JSON.parse(item.instructions);
+    // 데이터 변환
+    return (data || []).map((item) => {
+      try {
+        const parsedIngredients = JSON.parse(item.ingredients || "[]");
+        const parsedInstructions = JSON.parse(item.instructions || "[]");
 
-          return {
-            id: item.id,
-            name: item.name,
-            image: item.image,
-            ingredients: Array.isArray(parsedIngredients) ? parsedIngredients : [],
-            instructions: Array.isArray(parsedInstructions) ? parsedInstructions : [],
-            cookingTime: item.cooking_time,
-            difficulty: item.difficulty,
-            servings: item.servings,
-            tags: item.tags || [],
-            tips: item.tips || [],
-            createdBy: item.created_by,
-            authorEmail: item.author_email,
-            createdAt: new Date(item.created_at),
-            updatedAt: item.updated_at ? new Date(item.updated_at) : undefined,
-          };
-        } catch (parseError) {
-          console.error("Error parsing recipe data:", parseError);
-          // 파싱 실패 시 기본값 반환
-          return {
-            id: item.id,
-            name: item.name,
-            image: item.image,
-            ingredients: [],
-            instructions: [],
-            cookingTime: item.cooking_time,
-            difficulty: item.difficulty,
-            servings: item.servings,
-            tags: item.tags || [],
-            tips: item.tips || [],
-            createdBy: item.created_by,
-            authorEmail: item.author_email,
-            createdAt: new Date(item.created_at),
-            updatedAt: item.updated_at ? new Date(item.updated_at) : undefined,
-          };
-        }
-      }) || []
-    );
+        return {
+          id: item.id,
+          name: item.name,
+          image: item.image,
+          ingredients: Array.isArray(parsedIngredients) ? parsedIngredients : [],
+          instructions: Array.isArray(parsedInstructions) ? parsedInstructions : [],
+          cookingTime: item.cooking_time,
+          difficulty: item.difficulty,
+          servings: item.servings,
+          tags: item.tags || [],
+          tips: item.tips || [],
+          createdBy: item.created_by,
+          authorEmail: item.author_email,
+          createdAt: new Date(item.created_at),
+          updatedAt: item.updated_at ? new Date(item.updated_at) : undefined,
+        };
+      } catch (parseError) {
+        console.error("레시피 데이터 파싱 실패:", parseError);
+        // 파싱 실패 시 기본값 반환
+        return {
+          id: item.id,
+          name: item.name,
+          image: item.image,
+          ingredients: [],
+          instructions: [],
+          cookingTime: item.cooking_time,
+          difficulty: item.difficulty,
+          servings: item.servings,
+          tags: item.tags || [],
+          tips: item.tips || [],
+          createdBy: item.created_by,
+          authorEmail: item.author_email,
+          createdAt: new Date(item.created_at),
+          updatedAt: item.updated_at ? new Date(item.updated_at) : undefined,
+        };
+      }
+    });
+  },
+
+  async searchRecipes(query: string): Promise<Recipe[]> {
+    const { data, error } = await supabase
+      .from("recipes")
+      .select("*")
+      .or(`name.ilike.%${query}%,tags.cs.{${query}}`)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("레시피 검색 실패:", error);
+      throw new Error("레시피 검색에 실패했습니다.");
+    }
+
+    // 데이터 변환
+    return (data || []).map((item) => {
+      try {
+        const parsedIngredients = JSON.parse(item.ingredients || "[]");
+        const parsedInstructions = JSON.parse(item.instructions || "[]");
+
+        return {
+          id: item.id,
+          name: item.name,
+          image: item.image,
+          ingredients: Array.isArray(parsedIngredients) ? parsedIngredients : [],
+          instructions: Array.isArray(parsedInstructions) ? parsedInstructions : [],
+          cookingTime: item.cooking_time,
+          difficulty: item.difficulty,
+          servings: item.servings,
+          tags: item.tags || [],
+          tips: item.tips || [],
+          createdBy: item.created_by,
+          authorEmail: item.author_email,
+          createdAt: new Date(item.created_at),
+          updatedAt: item.updated_at ? new Date(item.updated_at) : undefined,
+        };
+      } catch (parseError) {
+        console.error("레시피 데이터 파싱 실패:", parseError);
+        // 파싱 실패 시 기본값 반환
+        return {
+          id: item.id,
+          name: item.name,
+          image: item.image,
+          ingredients: [],
+          instructions: [],
+          cookingTime: item.cooking_time,
+          difficulty: item.difficulty,
+          servings: item.servings,
+          tags: item.tags || [],
+          tips: item.tips || [],
+          createdBy: item.created_by,
+          authorEmail: item.author_email,
+          createdAt: new Date(item.created_at),
+          updatedAt: item.updated_at ? new Date(item.updated_at) : undefined,
+        };
+      }
+    });
   },
 
   // 레시피 추가

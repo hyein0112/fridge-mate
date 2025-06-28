@@ -23,6 +23,13 @@ interface Recipe {
   servings: number;
 }
 
+interface User {
+  id: string;
+  email: string;
+  created_at: string;
+  last_sign_in_at?: string;
+}
+
 export default function AdminPage() {
   const { user } = useAuth();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
@@ -32,12 +39,14 @@ export default function AdminPage() {
     totalUsers: 0,
     activeUsers: 0,
   });
+  const [users, setUsers] = useState<User[]>([]);
 
   const isAdmin = user && ADMIN_EMAILS.includes(user.email || "");
 
   useEffect(() => {
     if (isAdmin) {
       fetchData();
+      fetchUsers();
     }
   }, [isAdmin]);
 
@@ -72,6 +81,16 @@ export default function AdminPage() {
       setRecipes([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const { data, error } = await supabase.from("users").select("*").order("created_at", { ascending: false });
+      if (error) throw error;
+      setUsers(data || []);
+    } catch {
+      setUsers([]);
     }
   };
 
@@ -122,7 +141,7 @@ export default function AdminPage() {
 
   if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="flex items-center justify-center bg-gray-50">
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle className="text-center text-red-600">
@@ -138,7 +157,7 @@ export default function AdminPage() {
 
   if (!isAdmin) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="flex items-center justify-center bg-gray-50">
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle className="text-center text-red-600">
@@ -154,7 +173,7 @@ export default function AdminPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
           <p className="text-gray-600">데이터를 불러오는 중...</p>
@@ -164,7 +183,7 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="bg-gray-50 pt-16">
+    <div className="bg-gray-50 text-gray-900 pt-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
@@ -209,6 +228,39 @@ export default function AdminPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* 유저 목록 카드 */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>전체 유저 목록</CardTitle>
+            <CardDescription>가입된 모든 유저의 이메일, 가입일, 최근 로그인일을 확인할 수 있습니다.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-100">
+                    <th className="px-4 py-2 text-left">이메일</th>
+                    <th className="px-4 py-2 text-left">가입일</th>
+                    <th className="px-4 py-2 text-left">최근 로그인</th>
+                    <th className="px-4 py-2 text-left">ID</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map((user) => (
+                    <tr key={user.id} className="border-b">
+                      <td className="px-4 py-2">{user.email}</td>
+                      <td className="px-4 py-2">{formatDate(user.created_at)}</td>
+                      <td className="px-4 py-2">{user.last_sign_in_at ? formatDate(user.last_sign_in_at) : "-"}</td>
+                      <td className="px-4 py-2">{formatUserId(user.id)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {users.length === 0 && <div className="text-gray-500 py-4">유저가 없습니다.</div>}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* 탭 컨텐츠 */}
         <Tabs defaultValue="recipes" className="space-y-6">
@@ -268,7 +320,12 @@ export default function AdminPage() {
                           <td className="py-2">{recipe.servings}인분</td>
                           <td className="py-2">
                             <div className="flex space-x-2">
-                              <Button size="sm" variant="outline" onClick={() => window.open(`/recipe/${recipe.id}`, "_blank")}>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => window.open(`/recipe/${recipe.id}`, "_blank")}
+                                className="bg-white text-gray-900 border"
+                              >
                                 <Eye className="h-3 w-3" />
                               </Button>
                               <Button size="sm" variant="destructive" onClick={() => deleteRecipe(recipe.id)}>

@@ -80,12 +80,12 @@ export default function MyIngredientsPage() {
 
   if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div style={{ minHeight: "calc(100vh - 64px)" }} className="flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <h2 className="text-xl font-semibold text-gray-900 mb-2">로그인이 필요합니다</h2>
           <p className="text-gray-600 mb-4">내 식재료를 확인하려면 로그인해주세요.</p>
           <Link href="/auth">
-            <Button>로그인하기</Button>
+            <Button className="bg-white text-gray-900 border">로그인하기</Button>
           </Link>
         </div>
       </div>
@@ -94,7 +94,7 @@ export default function MyIngredientsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div style={{ minHeight: "calc(100vh - 64px)" }} className="bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
           <p className="text-gray-600">식재료를 불러오는 중...</p>
@@ -105,7 +105,7 @@ export default function MyIngredientsPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div style={{ minHeight: "calc(100vh - 64px)" }} className="bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <p className="text-red-600 mb-4">{error}</p>
           <Button onClick={loadIngredients} variant="outline">
@@ -181,7 +181,7 @@ export default function MyIngredientsPage() {
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="flex-1 sm:flex-none px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+              className="flex-1 sm:flex-none px-3 py-1 border border-gray-900 text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
             >
               {categories.map((category) => (
                 <option key={category} value={category}>
@@ -212,7 +212,7 @@ export default function MyIngredientsPage() {
                 </p>
                 {selectedCategory === "all" && (
                   <Link href="/ingredients">
-                    <Button size="sm">
+                    <Button size="sm" className="bg-white text-gray-900 border">
                       <Plus className="h-4 w-4 mr-2" />첫 식재료 추가하기
                     </Button>
                   </Link>

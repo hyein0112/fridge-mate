@@ -11,7 +11,7 @@ import { aiService } from "@/lib/ai-service";
 import { useAuth } from "@/lib/auth-context";
 
 export default function NewRecipePage() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const [formData, setFormData] = useState<RecipeFormData>({
     name: "",
     image: "",
@@ -25,19 +25,15 @@ export default function NewRecipePage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [availableIngredients, setAvailableIngredients] = useState<Ingredient[]>([]);
-  const [loading, setLoading] = useState(true);
 
   const loadAvailableIngredients = useCallback(async () => {
     if (!user) return;
 
     try {
-      setLoading(true);
       const data = await ingredientService.getAllIngredients(user.id);
       setAvailableIngredients(data);
     } catch (err) {
       console.error("식재료 로드 실패:", err);
-    } finally {
-      setLoading(false);
     }
   }, [user]);
 
@@ -145,7 +141,25 @@ export default function NewRecipePage() {
       }));
     } catch (error) {
       console.error("AI 레시피 생성 실패:", error);
-      alert("AI 레시피 생성에 실패했습니다. 다시 시도해주세요.");
+
+      // 더 자세한 오류 메시지 표시
+      let errorMessage = "AI 레시피 생성에 실패했습니다. 다시 시도해주세요.";
+
+      if (error instanceof Error) {
+        if (error.message.includes("API 키")) {
+          errorMessage = "Perplexity API 키가 설정되지 않았습니다. 관리자에게 문의해주세요.";
+        } else if (error.message.includes("네트워크")) {
+          errorMessage = "네트워크 연결을 확인해주세요.";
+        } else if (error.message.includes("올바른 레시피") || error.message.includes("JSON") || error.message.includes("파싱")) {
+          errorMessage = "AI가 올바른 레시피를 생성하지 못했습니다. 다시 시도해주세요.";
+        } else if (error.message.includes("중복되지 않는 레시피")) {
+          errorMessage = "이미 비슷한 레시피가 있습니다. 다른 재료로 시도해주세요.";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+
+      alert(errorMessage);
     } finally {
       setIsGenerating(false);
     }
@@ -166,14 +180,25 @@ export default function NewRecipePage() {
     }));
   };
 
+  if (loading) {
+    return (
+      <div style={{ minHeight: "calc(100vh - 64px)" }} className="bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">로딩중...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div style={{ minHeight: "calc(100vh - 64px)" }} className="flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <h2 className="text-xl font-semibold text-gray-900 mb-2">로그인이 필요합니다</h2>
-          <p className="text-gray-600 mb-4">레시피를 등록하려면 로그인해주세요.</p>
+          <p className="text-gray-600 mb-4">서비스를 이용하려면 로그인해주세요.</p>
           <Link href="/auth">
-            <Button>로그인하기</Button>
+            <Button className="bg-white text-gray-900 border">로그인하기</Button>
           </Link>
         </div>
       </div>
@@ -208,7 +233,7 @@ export default function NewRecipePage() {
                       type="text"
                       value={formData.name}
                       onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      className="w-full px-3 py-2 border border-gray-900 text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
                       placeholder="예: 감자 양파 스크램블 에그"
                       required
                       disabled={isSubmitting}
@@ -221,7 +246,7 @@ export default function NewRecipePage() {
                       type="url"
                       value={formData.image}
                       onChange={(e) => setFormData((prev) => ({ ...prev, image: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      className="w-full px-3 py-2 border border-gray-900 text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
                       placeholder="https://example.com/image.jpg"
                       disabled={isSubmitting}
                     />
@@ -232,7 +257,7 @@ export default function NewRecipePage() {
                     <textarea
                       value={formData.ingredients}
                       onChange={(e) => setFormData((prev) => ({ ...prev, ingredients: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      className="w-full px-3 py-2 border border-gray-900 text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
                       rows={4}
                       placeholder="감자 2개&#10;양파 1개&#10;계란 3개"
                       required
@@ -245,7 +270,7 @@ export default function NewRecipePage() {
                     <textarea
                       value={formData.instructions}
                       onChange={(e) => setFormData((prev) => ({ ...prev, instructions: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      className="w-full px-3 py-2 border border-gray-900 text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
                       rows={6}
                       placeholder="1. 감자를 깨끗이 씻어서 껍질을 벗깁니다.&#10;2. 양파를 다집니다.&#10;3. 감자를 작은 조각으로 썰어줍니다."
                       required
@@ -260,7 +285,7 @@ export default function NewRecipePage() {
                         type="number"
                         value={formData.cookingTime}
                         onChange={(e) => setFormData((prev) => ({ ...prev, cookingTime: parseInt(e.target.value) || 0 }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
+                        className="w-full px-3 py-2 border border-gray-900 text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
                         min="1"
                         disabled={isSubmitting}
                       />
@@ -271,7 +296,7 @@ export default function NewRecipePage() {
                       <select
                         value={formData.difficulty}
                         onChange={(e) => setFormData((prev) => ({ ...prev, difficulty: e.target.value as "easy" | "medium" | "hard" }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
+                        className="w-full px-3 py-2 border border-gray-900 text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
                         disabled={isSubmitting}
                       >
                         <option value="easy">쉬움</option>
@@ -286,7 +311,7 @@ export default function NewRecipePage() {
                         type="number"
                         value={formData.servings}
                         onChange={(e) => setFormData((prev) => ({ ...prev, servings: parseInt(e.target.value) || 1 }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
+                        className="w-full px-3 py-2 border border-gray-900 text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
                         min="1"
                         disabled={isSubmitting}
                       />
@@ -302,7 +327,7 @@ export default function NewRecipePage() {
                             type="checkbox"
                             checked={formData.tags.includes(tag)}
                             onChange={(e) => handleTagChange(tag, e.target.checked)}
-                            className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                            className="rounded border-gray-900 text-orange-600 focus:ring-orange-500"
                             disabled={isSubmitting}
                           />
                           <span className="text-sm text-gray-700">{tag}</span>
@@ -334,10 +359,10 @@ export default function NewRecipePage() {
                 <Button
                   onClick={handleAIGenerate}
                   disabled={isGenerating || !formData.ingredients.trim()}
-                  className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                  className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
                 >
                   <Sparkles className="h-4 w-4 mr-2" />
-                  {isGenerating ? "생성 중..." : "AI 레시피 생성"}
+                  <span className="text-white">{isGenerating ? "AI 생성 중..." : "AI로 레시피 생성"}</span>
                 </Button>
               </CardContent>
             </Card>
@@ -348,32 +373,19 @@ export default function NewRecipePage() {
                 <CardTitle>내 식재료</CardTitle>
               </CardHeader>
               <CardContent>
-                {loading ? (
-                  <p className="text-sm text-gray-500">로딩 중...</p>
-                ) : availableIngredients.length > 0 ? (
-                  <div className="space-y-2">
-                    <p className="text-sm text-gray-600 mb-3">클릭하여 식재료를 추가하세요</p>
-                    {availableIngredients.map((ingredient) => (
-                      <button
-                        key={ingredient.id}
-                        onClick={() => addAvailableIngredient(ingredient)}
-                        className="block w-full text-left p-2 text-sm bg-gray-50 hover:bg-gray-100 rounded-md transition-colors"
-                        disabled={isSubmitting}
-                      >
-                        {ingredient.name} {ingredient.quantity && `(${ingredient.quantity})`}
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-4">
-                    <p className="text-sm text-gray-500 mb-2">등록된 식재료가 없습니다</p>
-                    <Link href="/ingredients">
-                      <Button variant="outline" size="sm">
-                        식재료 등록하기
-                      </Button>
-                    </Link>
-                  </div>
-                )}
+                <div className="space-y-2">
+                  <p className="text-sm text-gray-600 mb-3">클릭하여 식재료를 추가하세요</p>
+                  {availableIngredients.map((ingredient) => (
+                    <button
+                      key={ingredient.id}
+                      onClick={() => addAvailableIngredient(ingredient)}
+                      className="block w-full text-left p-2 text-sm bg-gray-50 hover:bg-gray-100 rounded-md transition-colors text-gray-900"
+                      disabled={isSubmitting}
+                    >
+                      {ingredient.name} {ingredient.quantity && `(${ingredient.quantity})`}
+                    </button>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           </div>

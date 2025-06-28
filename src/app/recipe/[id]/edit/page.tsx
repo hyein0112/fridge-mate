@@ -169,7 +169,7 @@ export default function EditRecipePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div style={{ minHeight: "calc(100vh - 64px)" }} className="bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
           <p className="text-gray-600">레시피를 불러오는 중...</p>
@@ -180,7 +180,7 @@ export default function EditRecipePage() {
 
   if (error || !recipe) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div style={{ minHeight: "calc(100vh - 64px)" }} className="bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <p className="text-red-600 mb-4">{error || "레시피를 찾을 수 없습니다."}</p>
           <Link href="/">
@@ -194,7 +194,7 @@ export default function EditRecipePage() {
   // 작성자만 수정 가능
   if (recipe.createdBy !== user?.id) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div style={{ minHeight: "calc(100vh - 64px)" }} className="bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <p className="text-red-600 mb-4">이 레시피를 수정할 권한이 없습니다.</p>
           <Link href={`/recipe/${recipe.id}`}>

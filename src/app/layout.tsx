@@ -21,7 +21,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko">
-      <body className={`${inter.variable} font-sans antialiased`}>
+      <head>
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+      </head>
+      <body className={`${inter.variable} font-sans antialiased bg-gray-50 text-gray-900`}>
         <AuthProvider>
           <Navigation />
           {children}

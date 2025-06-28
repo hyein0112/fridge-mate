@@ -75,7 +75,7 @@ export default function RecipeDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div style={{ minHeight: "calc(100vh - 64px)" }} className="bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
           <p className="text-gray-600">레시피를 불러오는 중...</p>
@@ -86,7 +86,7 @@ export default function RecipeDetailPage() {
 
   if (error || !recipe) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div style={{ minHeight: "calc(100vh - 64px)" }} className="screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <p className="text-red-600 mb-4">{error || "레시피를 찾을 수 없습니다."}</p>
           <Link href="/">
@@ -126,7 +126,7 @@ export default function RecipeDetailPage() {
             </div>
             {user && recipe.createdBy === user.id && (
               <Link href={`/recipe/${recipe.id}/edit`}>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" className="bg-white text-gray-900 border">
                   <Edit className="h-4 w-4 mr-2" />
                   수정
                 </Button>
@@ -160,9 +160,23 @@ export default function RecipeDetailPage() {
               <CardContent>
                 <div className="space-y-2">
                   {recipe.ingredients.map((ingredient, index) => (
-                    <div key={index} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
-                      <span className="font-medium">{ingredient.name}</span>
-                      <span className="text-gray-600">{ingredient.quantity}</span>
+                    <div
+                      key={index}
+                      className={`flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0 ${
+                        ingredient.isAvailable === false ? "opacity-60 bg-gray-50" : ""
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className={`font-medium ${ingredient.isAvailable === false ? "text-gray-500" : "text-gray-900"}`}>
+                          {ingredient.name}
+                        </span>
+                        {ingredient.isAvailable === false && (
+                          <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded">추가 필요</span>
+                        )}
+                      </div>
+                      <span className={`${ingredient.isAvailable === false ? "text-gray-400" : "text-gray-600"}`}>
+                        {ingredient.quantity}
+                      </span>
                     </div>
                   ))}
                 </div>
