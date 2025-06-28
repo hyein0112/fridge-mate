@@ -117,7 +117,7 @@ export default function MyIngredientsPage() {
   }
 
   return (
-    <div className="bg-gray-50 pt-16">
+    <div style={{ minHeight: "calc(100vh - 64px)" }} className="bg-gray-50 pt-16">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
         {/* 헤더 */}
         <div className="mb-6 sm:mb-8">
