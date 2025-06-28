@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { recipeService } from "@/lib/database";
 import { aiService } from "@/lib/ai-service";
 import { useAuth } from "@/lib/auth-context";
-import Image from "next/image";
 import { ChefHat, Clock, ArrowLeft, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -57,7 +56,11 @@ export default function SearchPage() {
 
   // 2. AI 생성 버튼 클릭 시에만 AI 생성
   const handleAIGenerate = async () => {
-    if (!user) return;
+    if (!user) {
+      alert("AI 레시피 생성을 위해 로그인이 필요합니다.");
+      router.push("/auth");
+      return;
+    }
     setIsLoading(true);
 
     try {
@@ -116,23 +119,10 @@ export default function SearchPage() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: "calc(100vh - 64px)" }} className="bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
           <p className="text-gray-600">로딩중...</p>
-        </div>
-      </div>
-    );
-  }
-  if (!user) {
-    return (
-      <div style={{ minHeight: "calc(100vh - 64px)" }} className="flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">로그인이 필요합니다</h2>
-          <p className="text-gray-600 mb-4">서비스를 이용하려면 로그인해주세요.</p>
-          <Link href="/auth">
-            <Button className="bg-white text-gray-900 border">로그인하기</Button>
-          </Link>
         </div>
       </div>
     );
@@ -166,7 +156,7 @@ export default function SearchPage() {
                     setGeneratedRecipe(null);
                   }}
                   onKeyPress={(e) => e.key === "Enter" && handleSearch()}
-                  className="w-full bg-white text-gray-900 outline-none"
+                  className="w-full bg-white text-gray-900 border"
                 />
               </div>
               <Button onClick={handleSearch} className="w-full sm:w-auto bg-white text-gray-900 border">
@@ -197,38 +187,15 @@ export default function SearchPage() {
                       </span>
                     </div>
                   </CardHeader>
-
-                  <CardContent className="pt-0">
-                    {recipe.image && (
-                      <div className="mb-4">
-                        <Image
-                          src={recipe.image}
-                          alt={recipe.name}
-                          width={256}
-                          height={128}
-                          className="w-full h-32 sm:h-48 object-cover rounded-lg"
-                        />
+                  <CardContent>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-2 text-gray-600 text-sm">
+                        <Clock className="h-4 w-4" />
+                        <span>{recipe.cookingTime}분</span>
                       </div>
-                    )}
-
-                    <div className="space-y-3">
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-2 sm:space-y-0 text-sm text-gray-600">
-                        <div className="flex items-center space-x-1">
-                          <Clock className="h-4 w-4" />
-                          <span>{recipe.cookingTime}분</span>
-                        </div>
-                        <div className="flex items-center space-x-1">
-                          <ChefHat className="h-4 w-4" />
-                          <span>{recipe.servings}인분</span>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-wrap gap-1">
-                        {recipe.tags.map((tag, index) => (
-                          <span key={index} className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded-full">
-                            {tag}
-                          </span>
-                        ))}
+                      <div className="flex items-center gap-2 text-gray-600 text-sm">
+                        <ChefHat className="h-4 w-4" />
+                        <span>{recipe.servings}인분</span>
                       </div>
                     </div>
                   </CardContent>
@@ -247,7 +214,7 @@ export default function SearchPage() {
                 <p className="text-gray-600 mb-4">AI가 &ldquo;{searchQuery}&rdquo; 레시피를 새로 생성해드릴까요?</p>
                 <Button
                   onClick={handleAIGenerate}
-                  disabled={isLoading || !user}
+                  disabled={isLoading}
                   className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
                 >
                   <Sparkles className="h-4 w-4 mr-2" />
@@ -258,12 +225,12 @@ export default function SearchPage() {
           </Card>
         )}
 
-        {/* AI 생성된 레시피 */}
+        {/* AI로 생성된 레시피 결과 */}
         {generatedRecipe && (
           <div className="mb-6">
             <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4">AI가 생성한 레시피</h2>
             <Card
-              className="cursor-pointer hover:shadow-lg transition-shadow duration-200"
+              className="mb-4 cursor-pointer hover:shadow-lg transition-shadow duration-200"
               onClick={() => handleRecipeClick(generatedRecipe.id)}
             >
               <CardHeader className="pb-3">
@@ -278,42 +245,15 @@ export default function SearchPage() {
                   </span>
                 </div>
               </CardHeader>
-
-              <CardContent className="pt-0">
-                {generatedRecipe.image && (
-                  <div className="mb-4">
-                    <Image
-                      src={generatedRecipe.image}
-                      alt={generatedRecipe.name}
-                      width={256}
-                      height={128}
-                      className="w-full h-32 sm:h-48 object-cover rounded-lg"
-                    />
+              <CardContent>
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2 text-gray-600 text-sm">
+                    <Clock className="h-4 w-4" />
+                    <span>{generatedRecipe.cookingTime}분</span>
                   </div>
-                )}
-
-                <div className="space-y-3">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-2 sm:space-y-0 text-sm text-gray-600">
-                    <div className="flex items-center space-x-1">
-                      <Clock className="h-4 w-4" />
-                      <span>{generatedRecipe.cookingTime}분</span>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <ChefHat className="h-4 w-4" />
-                      <span>{generatedRecipe.servings}인분</span>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap gap-1">
-                    {generatedRecipe.tags.map((tag, index) => (
-                      <span key={index} className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded-full">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-
-                  <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                    <p className="text-sm text-green-800">✅ AI가 생성한 레시피가 데이터베이스에 저장되었습니다.</p>
+                  <div className="flex items-center gap-2 text-gray-600 text-sm">
+                    <ChefHat className="h-4 w-4" />
+                    <span>{generatedRecipe.servings}인분</span>
                   </div>
                 </div>
               </CardContent>

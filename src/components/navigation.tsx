@@ -147,7 +147,12 @@ const Navigation = () => {
                   <User className="h-4 w-4" />
                   <span className="hidden xl:block">{user.email}</span>
                 </div>
-                <Button onClick={handleSignOut} variant="outline" size="sm" className="flex items-center space-x-2">
+                <Button
+                  onClick={handleSignOut}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center space-x-2 bg-white text-gray-900 border"
+                >
                   <LogOut className="h-4 w-4" />
                   <span className="hidden sm:block">로그아웃</span>
                 </Button>
