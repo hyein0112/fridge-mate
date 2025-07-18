@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Ingredient, IngredientFormData } from "@/types";
 import { Plus, Trash2, Edit, ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { ingredientService } from "@/lib/database";
 import { useAuth } from "@/lib/auth-context";
 import { resetScrollPosition } from "@/lib/utils";
 
@@ -25,11 +24,17 @@ export default function IngredientsPage() {
 
   const loadIngredients = useCallback(async () => {
     if (!user) return;
-
     try {
       setError(null);
-      const data = await ingredientService.getAllIngredients(user.id);
-      setIngredients(data);
+      const res = await fetch(`/api/ingredients?user_id=${user.id}`);
+      if (!res.ok) throw new Error("식재료를 불러오는데 실패했습니다.");
+      const data: (Ingredient & { expiry_date?: string })[] = await res.json();
+      // 날짜 변환
+      const parsed = data.map((item) => ({
+        ...item,
+        expiryDate: item.expiry_date ? new Date(item.expiry_date) : undefined,
+      }));
+      setIngredients(parsed);
     } catch (err) {
       console.error("식재료 로드 실패:", err);
       setError("식재료를 불러오는데 실패했습니다.");
@@ -40,41 +45,49 @@ export default function IngredientsPage() {
     if (user) {
       loadIngredients();
     }
-    // 페이지 로드 시 스크롤 위치 초기화
     resetScrollPosition();
   }, [user, loadIngredients]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!user) {
       alert("로그인이 필요합니다.");
       return;
     }
-
     if (!formData.name.trim()) return;
-
     try {
       setSubmitting(true);
-
       const ingredientData = {
         name: formData.name.trim(),
         quantity: formData.quantity || undefined,
-        expiryDate: formData.expiryDate ? new Date(formData.expiryDate) : undefined,
+        expiryDate: formData.expiryDate || undefined,
         category: formData.category || undefined,
+        user_id: user.id,
       };
-
       if (isEditing) {
         // 수정
-        const updatedIngredient = await ingredientService.updateIngredient(isEditing, ingredientData);
+        const res = await fetch("/api/ingredients", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...ingredientData, id: isEditing }),
+        });
+        if (!res.ok) throw new Error("수정 실패");
+        const updatedIngredient = await res.json();
+        updatedIngredient.expiryDate = updatedIngredient.expiry_date ? new Date(updatedIngredient.expiry_date) : undefined;
         setIngredients((prev) => prev.map((ing) => (ing.id === isEditing ? updatedIngredient : ing)));
         setIsEditing(null);
       } else {
         // 추가
-        const newIngredient = await ingredientService.addIngredient(ingredientData, user.id);
+        const res = await fetch("/api/ingredients", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(ingredientData),
+        });
+        if (!res.ok) throw new Error("추가 실패");
+        const newIngredient = await res.json();
+        newIngredient.expiryDate = newIngredient.expiry_date ? new Date(newIngredient.expiry_date) : undefined;
         setIngredients((prev) => [...prev, newIngredient]);
       }
-
       setFormData({ name: "", quantity: "", expiryDate: "", category: "" });
     } catch (err) {
       console.error("식재료 저장 실패:", err);
@@ -95,9 +108,15 @@ export default function IngredientsPage() {
   };
 
   const handleDelete = async (id: string) => {
+    if (!user) return;
     if (confirm("정말로 이 식재료를 삭제하시겠습니까?")) {
       try {
-        await ingredientService.deleteIngredient(id);
+        const res = await fetch("/api/ingredients", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, user_id: user.id }),
+        });
+        if (!res.ok) throw new Error("삭제 실패");
         setIngredients((prev) => prev.filter((ing) => ing.id !== id));
       } catch (err) {
         console.error("삭제 실패:", err);
@@ -108,27 +127,33 @@ export default function IngredientsPage() {
 
   const handleBulkAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!user) {
       alert("로그인이 필요합니다.");
       return;
     }
-
     const form = e.target as HTMLFormElement;
     const textarea = form.elements.namedItem("bulkIngredients") as HTMLTextAreaElement;
     const ingredientsText = textarea.value.trim();
-
     if (!ingredientsText) return;
-
     try {
       setSubmitting(true);
-
       const ingredientNames = ingredientsText
-        .split(/[,\n]/)
+        .split(/[\,\n]/)
         .map((name) => name.trim())
         .filter((name) => name.length > 0);
-
-      const newIngredients = await ingredientService.bulkAddIngredients(ingredientNames, user.id);
+      const newIngredients: Ingredient[] = [];
+      for (const name of ingredientNames) {
+        const res = await fetch("/api/ingredients", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, user_id: user.id }),
+        });
+        if (res.ok) {
+          const ing = await res.json();
+          ing.expiryDate = ing.expiry_date ? new Date(ing.expiry_date) : undefined;
+          newIngredients.push(ing);
+        }
+      }
       setIngredients((prev) => [...prev, ...newIngredients]);
       textarea.value = "";
     } catch (err) {

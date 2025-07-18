@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Ingredient } from "@/types";
 import { Plus, Trash2, ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { ingredientService } from "@/lib/database";
 import { useAuth } from "@/lib/auth-context";
 import { resetScrollPosition } from "@/lib/utils";
 
@@ -25,8 +24,14 @@ export default function MyIngredientsPage() {
     try {
       setLoading(true);
       setError(null);
-      const data = await ingredientService.getAllIngredients(user.id);
-      setIngredients(data);
+      const res = await fetch(`/api/ingredients?user_id=${user.id}`);
+      if (!res.ok) throw new Error("식재료를 불러오는데 실패했습니다.");
+      const data: (Ingredient & { expiry_date?: string })[] = await res.json();
+      const parsed = data.map((item) => ({
+        ...item,
+        expiryDate: item.expiry_date ? new Date(item.expiry_date) : undefined,
+      }));
+      setIngredients(parsed);
     } catch (err) {
       console.error("식재료 로드 실패:", err);
       setError("식재료를 불러오는데 실패했습니다.");
@@ -63,9 +68,15 @@ export default function MyIngredientsPage() {
   };
 
   const handleDelete = async (id: string) => {
+    if (!user) return;
     if (confirm("정말로 이 식재료를 삭제하시겠습니까?")) {
       try {
-        await ingredientService.deleteIngredient(id);
+        const res = await fetch("/api/ingredients", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, user_id: user.id }),
+        });
+        if (!res.ok) throw new Error("삭제 실패");
         setIngredients((prev) => prev.filter((ing) => ing.id !== id));
       } catch (err) {
         console.error("삭제 실패:", err);

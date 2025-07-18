@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Clock, Users, ChefHat, Tag, Edit } from "lucide-react";
 import { Recipe } from "@/types";
-import { recipeService } from "@/lib/database";
 import { useAuth } from "@/lib/auth-context";
 import Link from "next/link";
 import Image from "next/image";
+import { formatTime } from "@/lib/utils";
 
 export default function RecipeDetailPage() {
   const params = useParams();
@@ -29,15 +29,12 @@ export default function RecipeDetailPage() {
       setLoading(true);
       setError(null);
 
-      // 실제로는 recipeService.getRecipeById를 구현해야 하지만
-      // 현재는 모든 레시피를 가져와서 필터링
-      const recipes = await recipeService.getAllRecipes();
-      const foundRecipe = recipes.find((r) => r.id === recipeId);
-
-      if (foundRecipe) {
-        setRecipe(foundRecipe);
+      const res = await fetch(`/api/recipes/${recipeId}`, { cache: "no-store" });
+      const data = await res.json();
+      if (res.ok && data) {
+        setRecipe(data);
       } else {
-        setError("레시피를 찾을 수 없습니다.");
+        setError(data?.error || "레시피를 찾을 수 없습니다.");
       }
     } catch (err) {
       console.error("레시피 로드 실패:", err);
@@ -112,7 +109,7 @@ export default function RecipeDetailPage() {
               <div className="flex flex-wrap gap-2 items-center text-sm text-gray-600">
                 <div className="flex items-center gap-1">
                   <Clock className="h-4 w-4" />
-                  <span>{recipe.cookingTime}분</span>
+                  <span>{formatTime(recipe.cooking_time)}</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <Users className="h-4 w-4" />

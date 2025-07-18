@@ -29,7 +29,7 @@ const RecipeCard = ({ recipe, missingIngredients, onClick }: RecipeCardProps) =>
           <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-2 sm:space-y-0 text-sm text-gray-600">
             <div className="flex items-center space-x-1">
               <Clock className="h-4 w-4" />
-              <span>{formatTime(recipe.cookingTime)}</span>
+              <span>{formatTime(recipe.cooking_time)}</span>
             </div>
             <div className="flex items-center space-x-1">
               <ChefHat className="h-4 w-4" />
@@ -37,7 +37,7 @@ const RecipeCard = ({ recipe, missingIngredients, onClick }: RecipeCardProps) =>
             </div>
           </div>
 
-          {missingIngredients.length > 0 && (
+          {Array.isArray(missingIngredients) && missingIngredients.length > 0 && (
             <div className="flex items-start space-x-2 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
               <AlertTriangle className="h-4 w-4 text-yellow-600 mt-0.5 flex-shrink-0" />
               <div className="text-sm flex-1">

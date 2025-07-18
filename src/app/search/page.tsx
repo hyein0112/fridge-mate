@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Recipe } from "@/types";
+import { formatTime } from "@/lib/utils";
 
 export default function SearchPage() {
   const { user, loading } = useAuth();
@@ -70,6 +71,7 @@ export default function SearchPage() {
           ...aiResponse,
           createdBy: user.id,
           authorEmail: user.email ?? "",
+          cooking_time: 0,
         },
         user.id
       );
@@ -191,7 +193,7 @@ export default function SearchPage() {
                     <div className="flex flex-col gap-2">
                       <div className="flex items-center gap-2 text-gray-600 text-sm">
                         <Clock className="h-4 w-4" />
-                        <span>{recipe.cookingTime}분</span>
+                        <span>{formatTime(recipe.cooking_time)}</span>
                       </div>
                       <div className="flex items-center gap-2 text-gray-600 text-sm">
                         <ChefHat className="h-4 w-4" />
@@ -249,7 +251,7 @@ export default function SearchPage() {
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center gap-2 text-gray-600 text-sm">
                     <Clock className="h-4 w-4" />
-                    <span>{generatedRecipe.cookingTime}분</span>
+                    <span>{formatTime(generatedRecipe.cooking_time)}</span>
                   </div>
                   <div className="flex items-center gap-2 text-gray-600 text-sm">
                     <ChefHat className="h-4 w-4" />

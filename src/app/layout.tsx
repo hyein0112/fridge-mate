@@ -4,6 +4,9 @@ import "./globals.css";
 import Navigation from "@/components/navigation";
 import { AuthProvider } from "@/lib/auth-context";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",

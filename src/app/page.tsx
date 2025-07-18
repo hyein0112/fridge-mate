@@ -1,12 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import RecipeCard from "@/components/recipe/recipe-card";
-import { Ingredient, Recipe } from "@/types";
+import RecipeList from "@/components/recipe/recipe-list";
+import { Ingredient } from "@/types";
 import { Plus, Sparkles, Search } from "lucide-react";
-import { ingredientService, recipeService } from "@/lib/database";
-import { aiService } from "@/lib/ai-service";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
@@ -14,58 +12,27 @@ import { resetScrollPosition } from "@/lib/utils";
 import React from "react";
 import { createPortal } from "react-dom";
 
+export const dynamic = "force-dynamic";
+
 export default function HomePage() {
   const { user, loading } = useAuth();
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
-  const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [pendingCategory, setPendingCategory] = useState<string>("한식");
   const router = useRouter();
 
-  const loadData = useCallback(async () => {
-    try {
-      let recipesData: Recipe[] = [];
-      try {
-        recipesData = await recipeService.getAllRecipes();
-      } catch {
-        recipesData = [];
-      }
-      setRecipes(recipesData);
-
-      let ingredientsData: Ingredient[] = [];
-      if (user) {
-        try {
-          ingredientsData = await ingredientService.getAllIngredients(user.id);
-        } catch {
-          ingredientsData = [];
-        }
-      }
-      setIngredients(ingredientsData);
-    } catch {
-      // 데이터를 불러오는데 실패했습니다.
-    }
-  }, [user?.id]);
-
   useEffect(() => {
-    loadData();
+    if (!user) {
+      setIngredients([]);
+      return;
+    }
+    fetch(`/api/ingredients?user_id=${user.id}`, { cache: "no-store" })
+      .then((res) => res.json())
+      .then((data) => setIngredients(data))
+      .catch(() => setIngredients([]));
     resetScrollPosition();
-  }, [loadData]);
-
-  // 레시피별 부족한 재료 계산
-  const getMissingIngredients = (recipe: Recipe): string[] => {
-    const availableIngredients = ingredients.map((ing) => ing.name.toLowerCase()).filter(Boolean);
-
-    return recipe.ingredients
-      .filter((ingredient) => ingredient.name && !availableIngredients.includes(ingredient.name.toLowerCase()))
-      .map((ingredient) => ingredient.name!)
-      .filter(Boolean);
-  };
-
-  const handleRecipeClick = (recipeId: string) => {
-    // 레시피 상세 페이지로 이동
-    router.push(`/recipe/${recipeId}`);
-  };
+  }, [user]);
 
   const handleAIGenerate = async (category: string) => {
     if (!user) {
@@ -84,22 +51,34 @@ export default function HomePage() {
       // AI 레시피 생성
       const ingredientNames = ingredients.map((ing) => ing.name).filter((name) => name && name.trim() !== "");
 
-      const aiRecipe = await aiService.generateRecipe({
-        ingredients: ingredientNames,
-        difficulty: "easy",
-        servings: 2,
-        cuisine: category,
+      const aiRes = await fetch("/api/ai-recipe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ingredients: ingredientNames,
+          difficulty: "easy",
+          servings: 2,
+          cuisine: category,
+        }),
       });
+      if (!aiRes.ok) {
+        const err = await aiRes.json();
+        throw new Error(err.error || "AI 레시피 생성 실패");
+      }
+      const aiRecipe = await aiRes.json();
 
       // 생성된 레시피를 데이터베이스에 저장
-      const savedRecipe = await recipeService.addRecipe(
-        {
+      const response = await fetch("/api/recipes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           ...aiRecipe,
           createdBy: user.id,
           authorEmail: user.email || "",
-        },
-        user.id
-      );
+          cooking_time: 0,
+        }),
+      });
+      const savedRecipe = await response.json();
 
       // 레시피 상세 페이지로 이동
       router.push(`/recipe/${savedRecipe.id}`);
@@ -239,22 +218,7 @@ export default function HomePage() {
           {/* 레시피 리스트: 항상 노출 */}
           <div className="mb-6 sm:mb-8">
             <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4">전체 레시피</h2>
-            {recipes.length === 0 ? (
-              <div className="text-center py-8 bg-white rounded-lg border border-gray-200">
-                <p className="text-gray-500">등록된 레시피가 없습니다.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                {recipes.map((recipe) => (
-                  <RecipeCard
-                    key={recipe.id}
-                    recipe={recipe}
-                    missingIngredients={user ? getMissingIngredients(recipe) : []}
-                    onClick={() => handleRecipeClick(recipe.id)}
-                  />
-                ))}
-              </div>
-            )}
+            <RecipeList myIngredients={user ? ingredients : undefined} />
           </div>
         </div>
       </div>

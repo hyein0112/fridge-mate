@@ -142,9 +142,9 @@ export const recipeService = {
           image: item.image,
           ingredients: Array.isArray(parsedIngredients) ? parsedIngredients : [],
           instructions: Array.isArray(parsedInstructions) ? parsedInstructions : [],
-          cookingTime: item.cooking_time,
+          cooking_time: Number(item.cooking_time) || 0,
           difficulty: item.difficulty,
-          servings: item.servings,
+          servings: Number(item.servings) || 1,
           tags: item.tags || [],
           tips: item.tips || [],
           createdBy: item.created_by,
@@ -161,7 +161,7 @@ export const recipeService = {
           image: item.image,
           ingredients: [],
           instructions: [],
-          cookingTime: item.cooking_time,
+          cooking_time: item.cooking_time,
           difficulty: item.difficulty,
           servings: item.servings,
           tags: item.tags || [],
@@ -186,7 +186,6 @@ export const recipeService = {
       console.error("레시피 검색 실패:", error);
       throw new Error("레시피 검색에 실패했습니다.");
     }
-
     // 데이터 변환
     return (data || []).map((item) => {
       try {
@@ -199,7 +198,7 @@ export const recipeService = {
           image: item.image,
           ingredients: Array.isArray(parsedIngredients) ? parsedIngredients : [],
           instructions: Array.isArray(parsedInstructions) ? parsedInstructions : [],
-          cookingTime: item.cooking_time,
+          cooking_time: Number(item.cooking_time) || 0,
           difficulty: item.difficulty,
           servings: item.servings,
           tags: item.tags || [],
@@ -218,7 +217,7 @@ export const recipeService = {
           image: item.image,
           ingredients: [],
           instructions: [],
-          cookingTime: item.cooking_time,
+          cooking_time: Number(item.cooking_time) || 0,
           difficulty: item.difficulty,
           servings: item.servings,
           tags: item.tags || [],
@@ -241,7 +240,7 @@ export const recipeService = {
         image: recipe.image,
         ingredients: JSON.stringify(recipe.ingredients),
         instructions: JSON.stringify(recipe.instructions),
-        cooking_time: recipe.cookingTime,
+        cooking_time: recipe.cooking_time,
         difficulty: recipe.difficulty,
         servings: recipe.servings,
         tags: recipe.tags,
@@ -266,7 +265,7 @@ export const recipeService = {
         image: data.image,
         ingredients: Array.isArray(parsedIngredients) ? parsedIngredients : [],
         instructions: Array.isArray(parsedInstructions) ? parsedInstructions : [],
-        cookingTime: data.cooking_time,
+        cooking_time: data.cooking_time,
         difficulty: data.difficulty,
         servings: data.servings,
         tags: data.tags || [],
@@ -301,7 +300,7 @@ export const recipeService = {
         image: recipe.image,
         ingredients: JSON.stringify(recipe.ingredients),
         instructions: JSON.stringify(recipe.instructions),
-        cooking_time: recipe.cookingTime,
+        cooking_time: recipe.cooking_time,
         difficulty: recipe.difficulty,
         servings: recipe.servings,
         tags: recipe.tags,
@@ -329,7 +328,7 @@ export const recipeService = {
         image: data.image,
         ingredients: Array.isArray(parsedIngredients) ? parsedIngredients : [],
         instructions: Array.isArray(parsedInstructions) ? parsedInstructions : [],
-        cookingTime: data.cooking_time,
+        cooking_time: data.cooking_time,
         difficulty: data.difficulty,
         servings: data.servings,
         tags: data.tags || [],

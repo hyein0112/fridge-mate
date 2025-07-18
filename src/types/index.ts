@@ -13,7 +13,7 @@ export interface Recipe {
   image?: string;
   ingredients: RecipeIngredient[];
   instructions: string[];
-  cookingTime: number; // minutes
+  cooking_time: number; // minutes
   difficulty: "easy" | "medium" | "hard";
   servings: number;
   tags: string[];
@@ -32,7 +32,7 @@ export interface RecipeIngredient {
 
 export interface RecipeCardProps {
   recipe: Recipe;
-  missingIngredients: string[];
+  missingIngredients?: string[];
   onClick: () => void;
 }
 

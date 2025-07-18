@@ -55,7 +55,7 @@ export default function EditRecipePage() {
       if (foundRecipe) {
         setRecipe(foundRecipe);
         setName(foundRecipe.name);
-        setCookingTime(foundRecipe.cookingTime);
+        setCookingTime(foundRecipe.cooking_time);
         setServings(foundRecipe.servings);
         setDifficulty(foundRecipe.difficulty);
         setImage(foundRecipe.image || "");
@@ -90,7 +90,7 @@ export default function EditRecipePage() {
       const updatedRecipe: Recipe = {
         ...recipe,
         name,
-        cookingTime,
+        cooking_time: cookingTime,
         servings,
         difficulty,
         image,

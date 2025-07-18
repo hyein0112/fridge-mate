@@ -80,7 +80,7 @@ export default function NewRecipePage() {
         image: formData.image || undefined,
         ingredients: ingredientsArray,
         instructions: instructionsArray,
-        cookingTime: formData.cookingTime,
+        cooking_time: formData.cookingTime,
         difficulty: formData.difficulty,
         servings: formData.servings,
         tags: formData.tags,
@@ -88,7 +88,7 @@ export default function NewRecipePage() {
         authorEmail: user.email || "",
       };
 
-      await recipeService.addRecipe(recipeData, user.id);
+      await recipeService.addRecipe({ ...recipeData, cooking_time: 0 }, user.id);
       alert("레시피가 저장되었습니다!");
 
       // 폼 초기화
