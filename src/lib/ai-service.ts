@@ -143,12 +143,12 @@ export const perplexityService = {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "llama-3.1-sonar-small-128k-online",
+            model: "sonar",
             messages: [
               {
                 role: "system",
                 content:
-                  "당신은 한국 가정 요리의 전문가입니다. 주어진 식재료로 친숙하고 맛있는 요리를 만들어주세요. 한국인 사용자가 많기 때문에, 주어진 재료를 기반으로 김치찌개, 김치볶음밥, 된장찌개, 계란볶음밥, 라면, 제육볶음, 닭볶음탕, 감자조림, 시금치나물 등 일상적인 한국 요리를 우선적으로 제안하세요. 가장 중요한 것은 실제로 조리 과정에서 사용하는 재료만 재료 목록에 포함하는 것입니다. 사용하지 않는 재료는 절대 포함하지 마세요. 주어진 재료를 위주로 사용하고, 자세한 조리법을 제공해주세요. 한국어로 답변해주세요.",
+                  "당신은 세계 각국 요리의 전문가입니다. 주어진 식재료로 만들 수 있는 가장 적합한 하나의 요리를 추천해 주세요. 한식, 양식, 중식, 일식, 이탈리안 등 다양한 국가의 요리를 고려할 수 있습니다. 반드시 한국 요리일 필요는 없습니다. 주어진 재료를 위주로 사용하고 자세한 조리법을 제공해 주세요. 실제로 조리 과정에서 사용하는 재료만 재료 목록에 포함해야 하며, 사용하지 않는 재료는 절대 포함하지 마세요. 답변은 반드시 한국어로 해주세요.",
               },
               {
                 role: "user",
@@ -244,9 +244,9 @@ export const perplexityService = {
 
     // 시도마다 다른 요리 스타일 제안
     const cookingStyles = [
-      "김치찌개, 김치볶음밥, 된장찌개, 계란볶음밥, 라면, 스팸볶음밥, 제육볶음, 닭볶음탕, 감자조림, 시금치나물",
-      "된장찌개, 계란볶음밥, 라면, 스팸볶음밥, 제육볶음, 닭볶음탕, 감자조림, 시금치나물, 김치찌개, 김치볶음밥",
-      "계란볶음밥, 라면, 스팸볶음밥, 제육볶음, 닭볶음탕, 감자조림, 시금치나물, 김치찌개, 김치볶음밥, 된장찌개",
+      "김치찌개, 비빔밥, 불고기, 파스타, 피자, 스테이크, 마파두부, 짜장면, 탕수육, 스시, 라멘, 가츠동, 까르보나라, 마르게리타 피자, 리조또",
+      "비빔밥, 불고기, 파스타, 피자, 스테이크, 마파두부, 짜장면, 탕수육, 스시, 라멘, 가츠동, 까르보나라, 마르게리타 피자, 리조또, 김치찌개",
+      "불고기, 파스타, 피자, 스테이크, 마파두부, 짜장면, 탕수육, 스시, 라멘, 가츠동, 까르보나라, 마르게리타 피자, 리조또, 김치찌개, 비빔밥",
     ];
 
     const currentStyle = cookingStyles[(attempt - 1) % cookingStyles.length];
@@ -292,15 +292,11 @@ ${dietary && dietary.length > 0 ? `식이 제한: ${dietary.join(", ")}` : ""}
 }
 
 요리 제안 가이드:
-- 김치가 있다면: 김치찌개, 김치볶음밥, 김치국수
-- 돼지고기가 있다면: 제육볶음, 돼지고기볶음, 삼겹살구이
-- 닭고기가 있다면: 닭볶음탕, 닭갈비, 닭볶음
-- 감자가 있다면: 감자조림, 감자볶음, 감자탕
-- 계란이 있다면: 계란볶음밥, 계란말이, 계란국
-- 라면이 있다면: 라면, 라면볶음, 라면국수
-- 스팸이 있다면: 스팸볶음밥, 스팸구이, 스팸김치찌개
-- 된장이 있다면: 된장찌개, 된장국, 된장볶음
-- 시금치가 있다면: 시금치나물, 시금치볶음, 시금치국
+- 한식: 김치찌개, 비빔밥, 불고기
+- 양식: 파스타, 피자, 스테이크
+- 중식: 마파두부, 짜장면, 탕수육
+- 일식: 스시, 라멘, 가츠동
+- 이탈리안: 까르보나라, 마르게리타 피자, 리조또
 
 조리법 작성 시 주의사항:
 - 각 단계를 아주 자세하게 실용적으로 설명해주세요
@@ -316,7 +312,8 @@ ${dietary && dietary.length > 0 ? `식이 제한: ${dietary.join(", ")}` : ""}
 - 추가로 필요한 재료는 "isAvailable": false로 표시
 - 재료명은 한국어로 작성합니다. 대신 김치 주재료 요리, 마요네즈 주재료 요리 등과 같은 요리명은 사용하지 마세요
 
-중요: 반드시 하나의 레시피만 JSON 형식으로 응답하세요. 다른 텍스트나 설명은 포함하지 마세요.`;
+중요: 반드시 하나의 레시피만 JSON 형식으로 응답하세요. 다른 텍스트나 설명은 포함하지 마세요.
+Return only valid JSON, no extra text or explanation. If you add anything else, the user will not be able to use your answer.`;
 
     return prompt;
   },
@@ -378,6 +375,7 @@ ${dietary && dietary.length > 0 ? `식이 제한: ${dietary.join(", ")}` : ""}
   },
 
   parseRecipeResponse(recipeText: string, request: AIRecipeRequest): AIRecipeResponse {
+    // Perplexity 응답 전체를 로그로 출력 (디버깅용)
     try {
       // JSON 부분 추출 - 여러 JSON 중 첫 번째 완전한 것 선택
       const jsonMatches = recipeText.match(/\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g);
@@ -468,7 +466,7 @@ ${dietary && dietary.length > 0 ? `식이 제한: ${dietary.join(", ")}` : ""}
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "llama-3.1-sonar-small-128k-online",
+          model: "sonar",
           messages: [
             {
               role: "user",
@@ -512,7 +510,7 @@ ${dietary && dietary.length > 0 ? `식이 제한: ${dietary.join(", ")}` : ""}
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "llama-3.1-sonar-small-128k-online",
+          model: "sonar",
           messages: [
             {
               role: "user",
@@ -575,8 +573,7 @@ ${dietary && dietary.length > 0 ? `식이 제한: ${dietary.join(", ")}` : ""}
         searchQuery = `${recipeName} ${mainIngredients.join(" ")} 음식`;
       }
 
-      // 검색어에 "한국 음식" 추가하여 더 정확한 결과 얻기
-      searchQuery += " 한국 음식";
+      searchQuery += " 이탈리아 음식, 양식, 한식, 중식, 일식";
 
       // Unsplash API로 음식 이미지 검색 (무료, 저작권 문제 없음)
       const unsplashKey = process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY;
@@ -661,7 +658,7 @@ export const aiService = {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "llama-3.1-sonar-small-128k-online",
+          model: "sonar",
           messages: [
             {
               role: "system",
