@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -54,27 +53,17 @@ export default function AdminPage() {
     try {
       setLoading(true);
 
-      // 레시피 데이터 가져오기 (author_email 포함)
-      const { data: recipesData, error: recipesError } = await supabase
-        .from("recipes")
-        .select("id, name, created_by, author_email, created_at, difficulty, cooking_time, servings")
-        .order("created_at", { ascending: false });
-
-      if (recipesError) {
-        console.error("레시피 데이터 로드 오류:", recipesError);
-        // 오류가 발생해도 빈 배열로 설정하여 UI가 깨지지 않도록 함
-        setRecipes([]);
-      } else {
-        setRecipes(recipesData || []);
-      }
-
+      // 레시피 데이터 가져오기 (API 라우트 사용)
+      const res = await fetch("/api/admin/recipes");
+      if (!res.ok) throw new Error("레시피 데이터 로드 오류");
+      const recipesData: Recipe[] = await res.json();
+      setRecipes(recipesData || []);
       // 사용자 통계 (레시피 작성자 기준으로 추정)
-      const uniqueUsers = new Set(recipesData?.map((recipe) => recipe.created_by) || []);
-
+      const uniqueUsers = new Set(recipesData?.map((recipe: Recipe) => recipe.created_by) || []);
       setStats({
         totalRecipes: recipesData?.length || 0,
         totalUsers: uniqueUsers.size,
-        activeUsers: uniqueUsers.size, // 레시피를 작성한 사용자를 활성 사용자로 간주
+        activeUsers: uniqueUsers.size,
       });
     } catch (error) {
       console.error("데이터 로드 오류:", error);
@@ -86,8 +75,9 @@ export default function AdminPage() {
 
   const fetchUsers = async () => {
     try {
-      const { data, error } = await supabase.from("users").select("*").order("created_at", { ascending: false });
-      if (error) throw error;
+      const res = await fetch("/api/admin/users");
+      if (!res.ok) throw new Error("유저 데이터 로드 오류");
+      const data = await res.json();
       setUsers(data || []);
     } catch {
       setUsers([]);
@@ -98,16 +88,19 @@ export default function AdminPage() {
     if (!confirm("정말로 이 레시피를 삭제하시겠습니까?")) return;
 
     try {
-      const { error } = await supabase.from("recipes").delete().eq("id", recipeId);
-
-      if (error) {
-        console.error("레시피 삭제 오류:", error);
-        alert("레시피 삭제에 실패했습니다.");
-      } else {
-        setRecipes(recipes.filter((recipe) => recipe.id !== recipeId));
-        setStats((prev) => ({ ...prev, totalRecipes: prev.totalRecipes - 1 }));
-        alert("레시피가 삭제되었습니다.");
+      const res = await fetch("/api/admin/recipes", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: recipeId }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || "레시피 삭제에 실패했습니다.");
+        return;
       }
+      setRecipes(recipes.filter((recipe) => recipe.id !== recipeId));
+      setStats((prev) => ({ ...prev, totalRecipes: prev.totalRecipes - 1 }));
+      alert("레시피가 삭제되었습니다.");
     } catch (error) {
       console.error("레시피 삭제 오류:", error);
       alert("레시피 삭제에 실패했습니다.");
