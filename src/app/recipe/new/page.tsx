@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import React from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RecipeFormData, Ingredient } from "@/types";
@@ -21,10 +22,13 @@ export default function NewRecipePage() {
     difficulty: "medium",
     servings: 2,
     tags: [],
+    category: "한식",
   });
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [availableIngredients, setAvailableIngredients] = useState<Ingredient[]>([]);
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [pendingCategory, setPendingCategory] = useState<string>("한식");
 
   const loadAvailableIngredients = useCallback(async () => {
     if (!user) return;
@@ -106,7 +110,7 @@ export default function NewRecipePage() {
     }
   };
 
-  const handleAIGenerate = async () => {
+  const handleAIGenerate = async (category: string) => {
     if (!formData.ingredients.trim()) {
       alert("AI 레시피 생성을 위해 식재료를 입력해주세요.");
       return;
@@ -126,6 +130,7 @@ export default function NewRecipePage() {
         ingredients: ingredientNames,
         difficulty: formData.difficulty,
         servings: formData.servings,
+        cuisine: category,
       });
 
       // 폼에 AI 생성 결과 적용
@@ -138,6 +143,7 @@ export default function NewRecipePage() {
         difficulty: aiRecipe.difficulty,
         servings: aiRecipe.servings,
         tags: aiRecipe.tags,
+        category: category,
       }));
     } catch (error) {
       console.error("AI 레시피 생성 실패:", error);
@@ -356,14 +362,64 @@ export default function NewRecipePage() {
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-gray-600 mb-4">입력한 식재료로 AI가 레시피를 자동으로 생성해드립니다.</p>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">요리 카테고리</label>
+                  <select
+                    value={formData.category}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, category: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-900 text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    disabled={isGenerating}
+                  >
+                    <option value="한식">한식</option>
+                    <option value="양식">양식</option>
+                    <option value="중식">중식</option>
+                    <option value="일식">일식</option>
+                    <option value="이탈리안">이탈리안</option>
+                  </select>
+                </div>
                 <Button
-                  onClick={handleAIGenerate}
+                  onClick={() => setIsCategoryModalOpen(true)}
                   disabled={isGenerating || !formData.ingredients.trim()}
                   className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
                 >
                   <Sparkles className="h-4 w-4 mr-2" />
                   <span className="text-white">{isGenerating ? "AI 생성 중..." : "AI로 레시피 생성"}</span>
                 </Button>
+                {/* 카테고리 선택 모달 */}
+                {isCategoryModalOpen && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+                    <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-xs">
+                      <h3 className="text-lg font-semibold mb-4">요리 카테고리 선택</h3>
+                      <select
+                        value={pendingCategory}
+                        onChange={(e) => setPendingCategory(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-900 text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 mb-4"
+                        disabled={isGenerating}
+                      >
+                        <option value="한식">한식</option>
+                        <option value="양식">양식</option>
+                        <option value="중식">중식</option>
+                        <option value="일식">일식</option>
+                        <option value="이탈리안">이탈리안</option>
+                      </select>
+                      <div className="flex justify-end space-x-2">
+                        <Button onClick={() => setIsCategoryModalOpen(false)} className="bg-gray-200 text-gray-900" disabled={isGenerating}>
+                          취소
+                        </Button>
+                        <Button
+                          onClick={async () => {
+                            setIsCategoryModalOpen(false);
+                            await handleAIGenerate(pendingCategory);
+                          }}
+                          className="bg-orange-600 text-white"
+                          disabled={isGenerating}
+                        >
+                          선택
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 

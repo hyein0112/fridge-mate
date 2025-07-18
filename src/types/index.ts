@@ -52,4 +52,5 @@ export interface RecipeFormData {
   difficulty: "easy" | "medium" | "hard";
   servings: number;
   tags: string[];
+  category?: string; // 요리 종류 (한식, 양식, 중식, 일식, 이탈리안 등)
 }
